@@ -29,7 +29,8 @@ async function apiClient<TResponse = any, TBody = undefined>(
       console.warn("Cookies not available in this context:", e);
     }
 
-    const baseURL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+    const rawBaseURL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+    const baseURL = rawBaseURL.replace(/\/+$/, "");
 
     const headers: HeadersInit = {
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
