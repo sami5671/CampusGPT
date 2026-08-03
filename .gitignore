@@ -1,0 +1,36 @@
+# Dependencies
+node_modules/
+client/node_modules/
+
+# Next.js Build Output
+client/.next/
+client/out/
+client/tsconfig.tsbuildinfo
+
+# Python Cache & Virtual Environments
+__pycache__/
+*.py[cod]
+server/__pycache__/
+venv/
+.venv/
+server/venv/
+server/.venv/
+
+# Environment Files (Secrets)
+.env
+.env*.local
+*.env
+client/.env*.local
+server/.env
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+
+# OS & Editor files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
