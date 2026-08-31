@@ -254,9 +254,11 @@ export default function Hero() {
               <div className="flex items-center justify-between pb-4 border-b border-border/30 mb-4">
                 <div className="flex items-center gap-3">
                   <div className="relative">
-                    <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-primary to-accent flex items-center justify-center text-white shadow-md shadow-primary/30">
-                      <Bot className="w-6 h-6" />
-                    </div>
+                    <img
+                      src="/bot-avatar.jpg"
+                      alt="CampusGPT Bot Avatar"
+                      className="w-10 h-10 rounded-2xl object-cover border border-primary/40 shadow-md"
+                    />
                     <span className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-emerald-500 border-2 border-card animate-pulse"></span>
                   </div>
                   <div>

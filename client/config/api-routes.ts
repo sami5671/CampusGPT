@@ -21,6 +21,10 @@ const apiRoutes = {
     customerVerifyOtp: "/api/v1/customers/auth/verify-otp",
     customerSignupVerifyOtp: "/api/v1/customers/auth/verify-signup-otp",
     flashSaleProducts: "/api/v1/customers/offers/flash-sale",
+    chatQuery: "/chat/query",
+    syncIndex: "/chat/sync-index",
+    conversations: "/chat/conversations",
+    conversationDetail: (id: string) => `/chat/conversations/${id}`,
   },
   privateRoutes: {
     admin: {

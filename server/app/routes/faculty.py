@@ -7,6 +7,7 @@ from bson import ObjectId
 from app.models.faculty import FacultyCreate, FacultyUpdate
 from app.core.database import get_database
 from app.core.deps import get_current_admin, get_current_user
+from app.services.rag_service import rag_service
 
 router = APIRouter(prefix="/faculty", tags=["Faculty"])
 
@@ -104,6 +105,12 @@ async def add_faculty(
     result = await faculty_collection.insert_one(new_doc)
     new_doc["_id"] = result.inserted_id
 
+    # Auto sync RAG index
+    try:
+        await rag_service.index_all_data(db)
+    except Exception:
+        pass
+
     return JSONResponse(
         status_code=status.HTTP_201_CREATED,
         content={
@@ -168,6 +175,12 @@ async def update_faculty(
     await faculty_collection.update_one({"_id": obj_id}, {"$set": update_data})
     updated_doc = await faculty_collection.find_one({"_id": obj_id})
 
+    # Auto sync RAG index
+    try:
+        await rag_service.index_all_data(db)
+    except Exception:
+        pass
+
     return JSONResponse(
         status_code=status.HTTP_200_OK,
         content={
@@ -221,6 +234,12 @@ async def delete_faculty(
                 "statusCode": 404
             }
         )
+
+    # Auto sync RAG index
+    try:
+        await rag_service.index_all_data(db)
+    except Exception:
+        pass
 
     return JSONResponse(
         status_code=status.HTTP_200_OK,

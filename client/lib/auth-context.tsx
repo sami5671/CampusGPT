@@ -26,8 +26,13 @@ export interface User {
   providerId?: string
   avatar?: string
   studentId?: string
+  idNumber?: string
+  department?: string
   creditsCompleted?: string | number
   bloodGroup?: string
+  currentSemester?: string
+  creditsEnrolled?: string
+  currentGPA?: string
   idCardFront?: string
   idCardBack?: string
 }

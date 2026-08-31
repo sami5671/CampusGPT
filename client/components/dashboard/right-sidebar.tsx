@@ -1,35 +1,42 @@
 'use client'
 
 import { Sparkles } from 'lucide-react'
+import { useAuth } from '@/lib/auth-context'
 
-export function RightSidebar() {
+interface RightSidebarProps {
+  onSelectSuggestion?: (suggestion: string) => void
+}
+
+export function RightSidebar({ onSelectSuggestion }: RightSidebarProps) {
+  const { user } = useAuth()
+
   const suggestions = [
-    'What are the library hours?',
-    'How do I register for courses?',
-    'Tell me about the computer labs',
-    'When is the next campus event?',
+    'What are the faculty members and professors?',
+    'What is the class schedule?',
+    'Where are the campus offices located?',
+    'What are the latest campus announcements?',
   ]
 
   const contextCards = [
     {
       title: 'Current Semester',
-      content: 'Spring 2026',
+      content: user?.currentSemester || 'Spring 2026',
       icon: '📅',
     },
     {
       title: 'Credits Enrolled',
-      content: '15 Credits',
+      content: user?.creditsEnrolled || '15 Credits',
       icon: '📚',
     },
     {
       title: 'Current GPA',
-      content: '3.85',
+      content: user?.currentGPA || '3.85',
       icon: '⭐',
     },
     {
-      title: 'Attendance',
-      content: '94%',
-      icon: '✓',
+      title: 'Student ID',
+      content: user?.idNumber || user?.studentId || '221-15-1234',
+      icon: '🆔',
     },
   ]
 
@@ -45,6 +52,7 @@ export function RightSidebar() {
           {suggestions.map((suggestion, i) => (
             <button
               key={i}
+              onClick={() => onSelectSuggestion && onSelectSuggestion(suggestion)}
               className="w-full text-left text-sm p-3 rounded-lg bg-muted/30 hover:bg-muted/60 text-muted-foreground hover:text-foreground transition line-clamp-2"
             >
               {suggestion}
@@ -60,13 +68,13 @@ export function RightSidebar() {
           {contextCards.map((card, i) => (
             <div
               key={i}
-              className="p-3 rounded-lg bg-gradient-to-br from-primary/10 to-accent/10 border border-border/40"
+              className="p-3 rounded-lg bg-gradient-to-br from-primary/10 to-accent/10 border border-border/40 transition hover:border-primary/40"
             >
               <div className="flex items-center justify-between mb-1">
                 <span className="text-xs font-medium text-muted-foreground">{card.title}</span>
                 <span className="text-lg">{card.icon}</span>
               </div>
-              <p className="text-sm font-semibold text-foreground">{card.content}</p>
+              <p className="text-sm font-semibold text-foreground truncate">{card.content}</p>
             </div>
           ))}
         </div>

@@ -4,8 +4,9 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import settings
-from app.core.database import connect_to_mongo, close_mongo_connection
-from app.routes import auth, faculty, offices, templates, classes, announcements, dashboard
+from app.core.database import connect_to_mongo, close_mongo_connection, get_database
+from app.routes import auth, faculty, offices, templates, classes, announcements, dashboard, chat
+from app.services.rag_service import rag_service
 
 logging.basicConfig(
     level=logging.INFO,
@@ -17,6 +18,12 @@ logger = logging.getLogger(__name__)
 async def lifespan(app: FastAPI):
     logger.info("Initializing FastAPI CampusGPT application...")
     await connect_to_mongo()
+    db = get_database()
+    if db is not None:
+        try:
+            await rag_service.index_all_data(db)
+        except Exception as e:
+            logger.error(f"Initial RAG index build failed: {e}")
     yield
     logger.info("Shutting down FastAPI CampusGPT application...")
     await close_mongo_connection()
@@ -44,6 +51,7 @@ app.include_router(templates.router)
 app.include_router(classes.router)
 app.include_router(announcements.router)
 app.include_router(dashboard.router)
+app.include_router(chat.router)
 
 @app.get("/")
 def read_root():

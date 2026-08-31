@@ -42,9 +42,11 @@ export default function Navbar() {
         <div className="flex justify-between items-center h-16">
           <div className="flex items-center gap-8">
             <Link href="/" className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary to-accent flex items-center justify-center">
-                <span className="text-white font-bold text-lg">C</span>
-              </div>
+              <img
+                src="/bot-avatar.jpg"
+                alt="CampusGPT Bot Logo"
+                className="w-8 h-8 rounded-lg object-cover border border-primary/40 shadow-sm"
+              />
               <span className="font-bold text-xl text-foreground">CampusGPT</span>
             </Link>
             <div className="hidden md:flex gap-6">

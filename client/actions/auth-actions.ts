@@ -40,10 +40,18 @@ export async function handleUserLogin(formData: FormData) {
             path: "/",
             maxAge: 60 * 60 * 24, // 1 day
         });
+        cookieStore.set("campusGPT", token, {
+            httpOnly: false,
+            secure: process.env.NODE_ENV === "production",
+            sameSite: "lax",
+            path: "/",
+            maxAge: 60 * 60 * 24, // 1 day
+        });
 
         return {
             status: true,
             user,
+            token,
         };
     } catch (error) {
         const errorMessage = error instanceof Error ? error.message : "An unexpected error occurred!";
@@ -148,10 +156,18 @@ export async function handleStudentLogin(formData: FormData) {
             path: "/",
             maxAge: 60 * 60 * 24, // 1 day
         });
+        cookieStore.set("campusGPT", token, {
+            httpOnly: false,
+            secure: process.env.NODE_ENV === "production",
+            sameSite: "lax",
+            path: "/",
+            maxAge: 60 * 60 * 24, // 1 day
+        });
 
         return {
             status: true,
             user,
+            token,
         };
     } catch (error) {
         const errorMessage = error instanceof Error ? error.message : "An unexpected error occurred!";
@@ -164,6 +180,7 @@ export async function handleAdminLogout() {
     try {
         const cookieStore = await cookies();
         cookieStore.delete("admin_token");
+        cookieStore.delete("campusGPT");
         return { status: true };
     } catch (error) {
         const errorMessage = error instanceof Error ? error.message : "An unexpected logout error occurred!";
@@ -216,10 +233,18 @@ export async function handleRegister(formData: FormData) {
             path: "/",
             maxAge: 60 * 60 * 24, // 1 day
         });
+        cookieStore.set("campusGPT", token, {
+            httpOnly: false,
+            secure: process.env.NODE_ENV === "production",
+            sameSite: "lax",
+            path: "/",
+            maxAge: 60 * 60 * 24, // 1 day
+        });
 
         return {
             status: true,
             user,
+            token,
         };
     } catch (error) {
         const errorMessage = error instanceof Error ? error.message : "An unexpected error occurred!";
