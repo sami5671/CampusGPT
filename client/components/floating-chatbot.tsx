@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { Bot, MessageSquare, X, Send, Loader2, Sparkles, RefreshCw } from 'lucide-react'
 import { FormattedMessageContent } from './dashboard/formatted-message-content'
+import { getAuthToken } from '@/lib/get-token'
 
 interface Message {
   id: string
@@ -52,11 +53,7 @@ export default function FloatingChatbot() {
     try {
       const rawBaseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
       const baseUrl = rawBaseUrl.replace(/\/+$/, '')
-      let token = ''
-      if (typeof document !== 'undefined') {
-        const match = document.cookie.match(/(?:^|; )admin_token=([^;]*)/) || document.cookie.match(/(?:^|; )campusGPT=([^;]*)/)
-        if (match) token = match[1]
-      }
+      const token = getAuthToken()
 
       const headers: Record<string, string> = {
         'Content-Type': 'application/json',
@@ -68,40 +65,16 @@ export default function FloatingChatbot() {
         conversation_id: conversationId || undefined,
       }
 
-      let response: Response | null = null
-
-      try {
-        response = await fetch(`${baseUrl}/chat/query`, {
-          method: 'POST',
-          credentials: 'include',
-          headers,
-          body: JSON.stringify(bodyPayload),
-        })
-      } catch (err) {
-        if (baseUrl !== 'http://localhost:8000') {
-          response = await fetch('http://localhost:8000/chat/query', {
-            method: 'POST',
-            credentials: 'include',
-            headers,
-            body: JSON.stringify(bodyPayload),
-          })
-        } else {
-          throw err
-        }
-      }
-
-      if (!response.ok && baseUrl !== 'http://localhost:8000') {
-        response = await fetch('http://localhost:8000/chat/query', {
-          method: 'POST',
-          credentials: 'include',
-          headers,
-          body: JSON.stringify(bodyPayload),
-        })
-      }
+      const response = await fetch(`${baseUrl}/chat/query`, {
+        method: 'POST',
+        credentials: 'include',
+        headers,
+        body: JSON.stringify(bodyPayload),
+      })
 
       const data = await response.json()
 
-      if (data?.status && data?.data?.answer) {
+      if (response.ok && data?.status && data?.data?.answer) {
         const assistantMsg: Message = {
           id: (Date.now() + 1).toString(),
           sender: 'assistant',

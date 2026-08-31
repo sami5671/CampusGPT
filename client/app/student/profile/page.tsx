@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { useAuth } from '@/lib/auth-context'
 import { User as UserIcon, Mail, Phone, Building2, IdCard, Heart, MapPin, Save, Loader2, ArrowLeft, CheckCircle2, Calendar, BookOpen, Star, GraduationCap } from 'lucide-react'
 import Link from 'next/link'
+import { getAuthToken } from '@/lib/get-token'
 
 export default function EditProfilePage() {
   const router = useRouter()
@@ -51,11 +52,7 @@ export default function EditProfilePage() {
 
     try {
       const baseUrl = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000').replace(/\/+$/, '')
-      let token = ''
-      if (typeof document !== 'undefined') {
-        const match = document.cookie.match(/(?:^|; )admin_token=([^;]*)/) || document.cookie.match(/(?:^|; )campusGPT=([^;]*)/)
-        if (match) token = match[1]
-      }
+      const token = getAuthToken()
 
       const bodyData = {
         fullName,

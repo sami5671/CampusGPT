@@ -7,6 +7,7 @@ import { Topbar } from '@/components/dashboard/topbar'
 import { getCurrentUser } from '@/actions/auth-actions'
 import { Loader2 } from 'lucide-react'
 import { ChatSessionProvider, useChatSession } from '@/lib/chat-session-context'
+import { getAuthToken } from '@/lib/get-token'
 
 function StudentDashboardContent({ children }: { children: React.ReactNode }) {
   const router = useRouter()
@@ -43,11 +44,7 @@ function StudentDashboardContent({ children }: { children: React.ReactNode }) {
     setActiveConversationId(id)
     try {
       const baseUrl = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000').replace(/\/+$/, '')
-      let token = ''
-      if (typeof document !== 'undefined') {
-        const match = document.cookie.match(/(?:^|; )admin_token=([^;]*)/)
-        if (match) token = match[1]
-      }
+      const token = getAuthToken()
 
       const res = await fetch(`${baseUrl}/chat/conversations/${id}`, {
         credentials: 'include',

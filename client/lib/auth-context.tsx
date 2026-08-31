@@ -74,10 +74,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           }
           setUser(mappedUser)
           localStorage.setItem('user', JSON.stringify(mappedUser))
+          if (res.token) {
+            localStorage.setItem('admin_token', res.token)
+          }
         } else {
           // If server session is invalid, clear client session
           setUser(null)
           localStorage.removeItem('user')
+          localStorage.removeItem('admin_token')
+          localStorage.removeItem('token')
         }
       } catch (e) {
         // Fallback to local storage if API call fails (offline/network issue)
@@ -115,6 +120,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       setUser(mappedUser)
       localStorage.setItem('user', JSON.stringify(mappedUser))
+      if (res.token) {
+        localStorage.setItem('admin_token', res.token)
+      }
       return mappedUser
     } finally {
       setIsLoading(false)
@@ -136,6 +144,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       setUser(mappedUser)
       localStorage.setItem('user', JSON.stringify(mappedUser))
+      if (res.token) {
+        localStorage.setItem('admin_token', res.token)
+      }
       return mappedUser
     } finally {
       setIsLoading(false)
@@ -148,6 +159,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       await handleAdminLogout()
       setUser(null)
       localStorage.removeItem('user')
+      localStorage.removeItem('admin_token')
+      localStorage.removeItem('token')
     } finally {
       setIsLoading(false)
     }

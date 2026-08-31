@@ -256,7 +256,7 @@ export async function handleRegister(formData: FormData) {
 export async function getCurrentUser() {
     try {
         const cookieStore = await cookies();
-        const token = cookieStore.get("admin_token")?.value;
+        const token = cookieStore.get("admin_token")?.value || cookieStore.get("campusGPT")?.value;
 
         if (!token) {
             return { status: false, error: "No active session" };
@@ -274,6 +274,7 @@ export async function getCurrentUser() {
         return {
             status: true,
             user: res.data.user,
+            token: token,
         };
     } catch (error) {
         return { status: false, error: "Unexpected session retrieval error" };

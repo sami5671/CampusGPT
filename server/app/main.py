@@ -34,10 +34,11 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-origins = settings.CORS_ORIGINS if settings.CORS_ORIGINS else ["http://localhost:3000"]
+origins = settings.CORS_ORIGINS if settings.CORS_ORIGINS else ["http://localhost:3000", "https://campus-gpt-one.vercel.app"]
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
+    allow_origin_regex=r"https://.*\.vercel\.app",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

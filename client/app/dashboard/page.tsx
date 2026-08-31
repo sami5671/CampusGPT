@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { ChatInterface } from '@/components/dashboard/chat-interface'
 import { RightSidebar } from '@/components/dashboard/right-sidebar'
 import { useChatSession } from '@/lib/chat-session-context'
+import { getAuthToken } from '@/lib/get-token'
 
 interface Message {
   id: string
@@ -50,11 +51,7 @@ export default function DashboardPage() {
 
     try {
       const baseUrl = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000').replace(/\/+$/, '')
-      let token = ''
-      if (typeof document !== 'undefined') {
-        const match = document.cookie.match(/(?:^|; )admin_token=([^;]*)/)
-        if (match) token = match[1]
-      }
+      const token = getAuthToken()
 
       const headers: Record<string, string> = {
         'Content-Type': 'application/json',
@@ -66,40 +63,16 @@ export default function DashboardPage() {
         conversation_id: activeConversationId || undefined,
       }
 
-      let response: Response | null = null
-
-      try {
-        response = await fetch(`${baseUrl}/chat/query`, {
-          method: 'POST',
-          credentials: 'include',
-          headers,
-          body: JSON.stringify(bodyPayload),
-        })
-      } catch (err) {
-        if (baseUrl !== 'http://localhost:8000') {
-          response = await fetch('http://localhost:8000/chat/query', {
-            method: 'POST',
-            credentials: 'include',
-            headers,
-            body: JSON.stringify(bodyPayload),
-          })
-        } else {
-          throw err
-        }
-      }
-
-      if (!response.ok && baseUrl !== 'http://localhost:8000') {
-        response = await fetch('http://localhost:8000/chat/query', {
-          method: 'POST',
-          credentials: 'include',
-          headers,
-          body: JSON.stringify(bodyPayload),
-        })
-      }
+      const response = await fetch(`${baseUrl}/chat/query`, {
+        method: 'POST',
+        credentials: 'include',
+        headers,
+        body: JSON.stringify(bodyPayload),
+      })
 
       const data = await response.json()
 
-      if (data?.status && data?.data?.answer) {
+      if (response.ok && data?.status && data?.data?.answer) {
         const assistantMessage: Message = {
           id: (Date.now() + 1).toString(),
           sender: 'assistant',
@@ -117,7 +90,7 @@ export default function DashboardPage() {
         const fallbackMsg: Message = {
           id: (Date.now() + 1).toString(),
           sender: 'assistant',
-          content: data?.message || 'Unable to connect to Campus AI Assistant. Please ensure the backend FastAPI server is running.',
+          content: data?.message || 'Unable to connect to Campus AI Assistant. Please ensure the backend server is running.',
           timestamp: new Date(),
         }
         setMessages((prev) => [...prev, fallbackMsg])
@@ -126,7 +99,7 @@ export default function DashboardPage() {
       const errorMsg: Message = {
         id: (Date.now() + 1).toString(),
         sender: 'assistant',
-        content: 'Error connecting to Campus AI service. Please verify that the FastAPI backend server is running at http://localhost:8000.',
+        content: 'Error connecting to Campus AI service. Please verify that the backend API server is reachable.',
         timestamp: new Date(),
       }
       setMessages((prev) => [...prev, errorMsg])

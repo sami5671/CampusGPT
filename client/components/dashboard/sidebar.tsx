@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { ChevronLeft, Plus, MessageSquare, Trash2, Loader2, Pencil, Check, X, User as UserIcon, Home } from 'lucide-react'
 import { useAuth } from '@/lib/auth-context'
+import { getAuthToken } from '@/lib/get-token'
 
 interface ConversationSummary {
   id: string
@@ -44,11 +45,7 @@ export function Sidebar({
     setIsLoading(true)
     try {
       const baseUrl = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000').replace(/\/+$/, '')
-      let token = ''
-      if (typeof document !== 'undefined') {
-        const match = document.cookie.match(/(?:^|; )admin_token=([^;]*)/)
-        if (match) token = match[1]
-      }
+      const token = getAuthToken()
 
       const res = await fetch(`${baseUrl}/chat/conversations`, {
         credentials: 'include',
@@ -88,11 +85,7 @@ export function Sidebar({
 
     try {
       const baseUrl = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000').replace(/\/+$/, '')
-      let token = ''
-      if (typeof document !== 'undefined') {
-        const match = document.cookie.match(/(?:^|; )admin_token=([^;]*)/)
-        if (match) token = match[1]
-      }
+      const token = getAuthToken()
 
       await fetch(`${baseUrl}/chat/conversations/${id}`, {
         method: 'PATCH',
@@ -118,11 +111,7 @@ export function Sidebar({
     e.stopPropagation()
     try {
       const baseUrl = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000').replace(/\/+$/, '')
-      let token = ''
-      if (typeof document !== 'undefined') {
-        const match = document.cookie.match(/(?:^|; )admin_token=([^;]*)/)
-        if (match) token = match[1]
-      }
+      const token = getAuthToken()
 
       await fetch(`${baseUrl}/chat/conversations/${id}`, {
         method: 'DELETE',

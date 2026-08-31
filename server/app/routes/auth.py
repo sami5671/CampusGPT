@@ -262,46 +262,11 @@ async def login(user_in: UserLogin):
     )
 
 @router.get("/me")
-async def get_me(authorization: Optional[str] = Header(None)):
-    if not authorization or not authorization.startswith("Bearer "):
-        return {
-            "status": False,
-            "data": None,
-            "message": "Unauthorized access token missing",
-            "statusCode": 401
-        }
-    
-    token = authorization.split(" ")[1]
-    payload = decode_access_token(token)
-
-    if not payload or "sub" not in payload:
-        return {
-            "status": False,
-            "data": None,
-            "message": "Invalid or expired access token",
-            "statusCode": 401
-        }
-
-    db = get_database()
-    users_collection = db["users"]
-    
-    try:
-        user_doc = await users_collection.find_one({"_id": ObjectId(payload["sub"])})
-    except Exception:
-        user_doc = None
-
-    if not user_doc:
-        return {
-            "status": False,
-            "data": None,
-            "message": "User not found",
-            "statusCode": 404
-        }
-
+async def get_me(current_user: dict = Depends(get_current_user)):
     return {
         "status": True,
         "data": {
-            "user": format_user_doc(user_doc)
+            "user": format_user_doc(current_user)
         },
         "message": "User profile fetched successfully",
         "statusCode": 200
