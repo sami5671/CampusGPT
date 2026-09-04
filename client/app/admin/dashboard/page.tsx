@@ -7,7 +7,6 @@ import Link from 'next/link'
 import { 
   Users, 
   BookOpen, 
-  Megaphone, 
   Building2, 
   FileText, 
   PlayCircle, 
@@ -68,14 +67,6 @@ export default function AdminDashboard() {
       href: '/admin/classes' 
     },
     { 
-      title: 'Announcements', 
-      value: statsData?.totalAnnouncements ?? 0, 
-      subText: `${statsData?.highPriorityAnnouncements ?? 0} High Priority 🔴`,
-      icon: Megaphone, 
-      color: 'from-pink-500 to-orange-500',
-      href: '/admin/announcements' 
-    },
-    { 
       title: 'Application Templates', 
       value: statsData?.totalTemplates ?? 0, 
       subText: 'Cloudinary Presets',
@@ -133,7 +124,7 @@ export default function AdminDashboard() {
           <p className="text-sm font-medium">Fetching dynamic statistics from MongoDB...</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {statCards.map((stat, idx) => (
             <Link key={idx} href={stat.href}>
               <Card className="p-5 cursor-pointer hover:border-primary/60 hover:shadow-lg transition-all border-border/40 bg-card/50 backdrop-blur-sm group space-y-3">
@@ -200,11 +191,6 @@ export default function AdminDashboard() {
         <Card className="p-6 border-border/40 bg-card/50 backdrop-blur-sm space-y-4">
           <h2 className="text-lg font-bold text-foreground">Quick Management</h2>
           <div className="space-y-2.5">
-            <Link href="/admin/announcements">
-              <Button className="w-full justify-start bg-primary/10 hover:bg-primary/20 text-primary border border-primary/30 gap-2.5 text-xs font-semibold">
-                <Plus className="w-4 h-4" /> Publish Announcement
-              </Button>
-            </Link>
             <Link href="/admin/classes">
               <Button className="w-full justify-start bg-purple-500/10 hover:bg-purple-500/20 text-purple-400 border border-purple-500/30 gap-2.5 text-xs font-semibold">
                 <Plus className="w-4 h-4" /> Add Class Schedule

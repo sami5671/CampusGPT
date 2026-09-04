@@ -29,7 +29,8 @@ const apiRoutes = {
   privateRoutes: {
     admin: {
       profile: "/api/admin/auth/me",
-      changePassword: "/user/updatePassword",
+      changePassword: "/auth/change-password",
+      changeEmail: "/auth/change-email",
       updateProfile: "/api/admin/auth/me",
       adminList: "/api/v1/admin/users",
       adminListNoPagination: "/api/v1/admin/users/all",

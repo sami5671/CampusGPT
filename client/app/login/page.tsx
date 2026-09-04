@@ -80,14 +80,14 @@ export default function LoginPage() {
     setRole(demoRole)
     setErrorMsg('')
     if (demoRole === 'student') {
-      setEmail('alex.johnson@campus.edu')
-      setPassword('demoStudent2026!')
+      setEmail('student@gmail.com')
+      setPassword('campus123!@#')
     } else if (demoRole === 'faculty') {
       setEmail('dr.wilson@campus.edu')
       setPassword('demoFaculty2026!')
     } else {
-      setEmail('admin@campus.edu')
-      setPassword('demoAdmin2026!')
+      setEmail('admin@gmail.com')
+      setPassword('campus123!@#')
     }
   }
 

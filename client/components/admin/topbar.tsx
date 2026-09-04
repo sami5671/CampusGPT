@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Search, LogOut, ShieldCheck, Loader2 } from 'lucide-react'
 import { Input } from '@/components/ui/input'
@@ -41,18 +42,24 @@ export function AdminTopbar() {
 
       {/* User Profile & Logout */}
       <div className="flex items-center gap-4 ml-auto">
-        <div className="text-right hidden sm:block">
-          <p className="text-xs font-bold text-foreground flex items-center justify-end gap-1">
-            <ShieldCheck className="w-3.5 h-3.5 text-amber-400" />
-            {adminName}
-          </p>
-          <p className="text-[11px] text-muted-foreground">{adminEmail}</p>
-        </div>
+        <Link
+          href="/admin/profile"
+          className="flex items-center gap-3 hover:opacity-80 transition cursor-pointer"
+          title="Go to Admin Profile & Password Settings"
+        >
+          <div className="text-right hidden sm:block">
+            <p className="text-xs font-bold text-foreground flex items-center justify-end gap-1">
+              <ShieldCheck className="w-3.5 h-3.5 text-amber-400" />
+              {adminName}
+            </p>
+            <p className="text-[11px] text-muted-foreground">{adminEmail}</p>
+          </div>
 
-        {/* Profile Avatar Badge */}
-        <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-primary via-secondary to-accent flex items-center justify-center text-white font-bold text-xs shadow-md shadow-primary/20">
-          {adminName.charAt(0).toUpperCase()}
-        </div>
+          {/* Profile Avatar Badge */}
+          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-primary via-secondary to-accent flex items-center justify-center text-white font-bold text-xs shadow-md shadow-primary/20">
+            {adminName.charAt(0).toUpperCase()}
+          </div>
+        </Link>
 
         {/* Log Out Button */}
         <button

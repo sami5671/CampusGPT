@@ -135,6 +135,28 @@ class RAGService:
         except Exception as e:
             logger.error(f"Error indexing office records: {e}")
 
+        # 5. Index Application Templates records
+        try:
+            temp_cursor = db["application_templates"].find({})
+            templates = await temp_cursor.to_list(length=1000)
+            for t in templates:
+                name = clean_html(t.get("templateName") or t.get("name") or "Application Template")
+                desc = clean_html(t.get("description", ""))
+                image_url = clean_html(t.get("imageUrl", ""))
+
+                text = (
+                    f"Application Template: {name}. Description: {desc}. Download or Preview Link: {image_url}."
+                )
+                docs.append({
+                    "id": str(t.get("_id")),
+                    "type": "template",
+                    "title": f"Template: {name}",
+                    "content": text,
+                    "metadata": t
+                })
+        except Exception as e:
+            logger.error(f"Error indexing application template records: {e}")
+
         self.documents = docs
         self.doc_texts = [d["content"] for d in docs]
 
@@ -239,7 +261,8 @@ class RAGService:
 
     async def generate_response(self, query: str, db) -> Dict[str, Any]:
         """Generate RAG response for user message."""
-        if not self.is_indexed:
+        # Always re-index from MongoDB to guarantee client-server sync with latest data
+        if db is not None:
             await self.index_all_data(db)
 
         relevant_docs = self.retrieve_context(query, top_k=5)
@@ -336,6 +359,12 @@ class RAGService:
                         f"• **Email**: {meta.get('email', 'N/A')}\n"
                         f"• **Hours**: {meta.get('hours', 'N/A')}"
                     )
+                elif d["type"] == "template":
+                    formatted_chunks.append(
+                        f"📄 **{meta.get('templateName', 'Application Template')}**\n"
+                        f"• **Description**: {meta.get('description', 'N/A')}\n"
+                        f"• **Preview/Download**: {meta.get('imageUrl', 'N/A')}"
+                    )
 
             if is_head_query and len(relevant_docs) > 0 and relevant_docs[0]["type"] == "faculty":
                 head_meta = relevant_docs[0]["metadata"]
@@ -346,7 +375,7 @@ class RAGService:
             synthesis = (
                 header_intro +
                 "\n\n".join(formatted_chunks) +
-                f"\n\n*Feel free to ask more questions about faculty members, classes, or campus offices!*"
+                f"\n\n*Feel free to ask more questions about faculty members, class schedules, application templates, or campus offices!*"
             )
 
             return {
@@ -359,13 +388,13 @@ class RAGService:
         total_docs = len(self.documents)
         if total_docs == 0:
             fallback_msg = (
-                "I searched the campus database, but no records (faculty, classes, or offices) have been added yet.\n\n"
+                "I searched the campus database, but no records (faculty, classes, application templates, or offices) have been added yet.\n\n"
                 "Once information is entered in the Admin portal, I will automatically retrieve and answer questions about it!"
             )
         else:
             fallback_msg = (
                 f"I searched {total_docs} campus records, but I couldn't find specific information matching your query.\n\n"
-                "You can ask me about faculty members (names, departments, office rooms), class schedules, announcements, or campus offices."
+                "You can ask me about faculty members (names, departments, office rooms), class schedules, application templates, or campus offices."
             )
 
         return {

@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import { LayoutDashboard, Megaphone, Users, BookOpen, Building2, FileText, LogOut, Loader2 } from 'lucide-react'
+import { LayoutDashboard, Users, BookOpen, Building2, FileText, LogOut, Loader2, KeyRound } from 'lucide-react'
 import { useAuth } from '@/lib/auth-context'
 
 export function AdminSidebar() {
@@ -26,12 +26,12 @@ export function AdminSidebar() {
 
   const navItems = [
     { label: 'Dashboard', href: '/admin/dashboard', icon: LayoutDashboard },
-    { label: 'Announcements', href: '/admin/announcements', icon: Megaphone },
     { label: 'Faculty', href: '/admin/faculty', icon: Users },
     { label: 'Office Directory', href: '/admin/offices', icon: Building2 },
     { label: 'Application Templates', href: '/admin/templates', icon: FileText },
     { label: 'Classes', href: '/admin/classes', icon: BookOpen },
     { label: 'Students', href: '/admin/students', icon: Users },
+    { label: 'Profile & Password', href: '/admin/profile', icon: KeyRound },
   ]
 
   return (

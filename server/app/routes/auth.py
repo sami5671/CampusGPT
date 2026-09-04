@@ -33,6 +33,153 @@ def format_user_doc(doc: dict) -> dict:
         "updatedAt": doc.get("updatedAt", "")
     }
 
+class ChangeEmailRequest(BaseModel):
+    newEmail: str
+    currentPassword: str
+
+@router.post("/change-email")
+@router.patch("/change-email")
+@router.put("/change-email")
+async def change_email(
+    payload: ChangeEmailRequest,
+    current_user: dict = Depends(get_current_user)
+):
+    """
+    Change logged-in user email address with password verification.
+    """
+    db = get_database()
+    if db is None:
+        return JSONResponse(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            content={"status": False, "data": None, "message": "Database unavailable", "statusCode": 503}
+        )
+
+    user_id = current_user["_id"]
+    user_doc = await db["users"].find_one({"_id": user_id})
+    if not user_doc:
+        return JSONResponse(
+            status_code=status.HTTP_404_NOT_FOUND,
+            content={"status": False, "data": None, "message": "User not found", "statusCode": 404}
+        )
+
+    if not verify_password(payload.currentPassword, user_doc.get("password", "")):
+        return JSONResponse(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            content={"status": False, "data": None, "message": "Current password is incorrect!", "statusCode": 400}
+        )
+
+    new_email_clean = payload.newEmail.strip().lower()
+    if not new_email_clean or "@" not in new_email_clean:
+        return JSONResponse(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            content={"status": False, "data": None, "message": "Invalid email address!", "statusCode": 400}
+        )
+
+    if user_doc.get("email", "").lower() == new_email_clean:
+        return JSONResponse(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            content={"status": False, "data": None, "message": "New email is the same as your current email!", "statusCode": 400}
+        )
+
+    existing_user = await db["users"].find_one({"email": new_email_clean, "_id": {"$ne": user_id}})
+    if existing_user:
+        return JSONResponse(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            content={"status": False, "data": None, "message": "An account with this email already exists!", "statusCode": 400}
+        )
+
+    now_str = datetime.utcnow().isoformat()
+    await db["users"].update_one(
+        {"_id": user_id},
+        {"$set": {"email": new_email_clean, "updatedAt": now_str}}
+    )
+
+    updated_user_doc = await db["users"].find_one({"_id": user_id})
+    formatted_user = format_user_doc(updated_user_doc)
+
+    token = create_access_token({
+        "sub": formatted_user["id"],
+        "email": formatted_user["email"],
+        "role": formatted_user["role"]
+    })
+
+    return JSONResponse(
+        status_code=status.HTTP_200_OK,
+        content={
+            "status": True,
+            "data": {
+                "user": formatted_user,
+                "token": token
+            },
+            "message": "Email address updated successfully!",
+            "statusCode": 200
+        }
+    )
+
+class ChangePasswordRequest(BaseModel):
+    oldPassword: str
+    newPassword: str
+
+@router.post("/change-password")
+@router.patch("/change-password")
+@router.put("/change-password")
+async def change_password(
+    payload: ChangePasswordRequest,
+    current_user: dict = Depends(get_current_user)
+):
+    """
+    Change logged-in user password.
+    """
+    db = get_database()
+    if db is None:
+        return JSONResponse(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            content={"status": False, "data": None, "message": "Database unavailable", "statusCode": 503}
+        )
+
+    user_id = current_user["_id"]
+    user_doc = await db["users"].find_one({"_id": user_id})
+    if not user_doc:
+        return JSONResponse(
+            status_code=status.HTTP_404_NOT_FOUND,
+            content={"status": False, "data": None, "message": "User not found", "statusCode": 404}
+        )
+
+    if not verify_password(payload.oldPassword, user_doc.get("password", "")):
+        return JSONResponse(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            content={"status": False, "data": None, "message": "Current password is incorrect!", "statusCode": 400}
+        )
+
+    if len(payload.newPassword) < 6:
+        return JSONResponse(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            content={"status": False, "data": None, "message": "New password must be at least 6 characters long!", "statusCode": 400}
+        )
+
+    if payload.oldPassword == payload.newPassword:
+        return JSONResponse(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            content={"status": False, "data": None, "message": "New password must be different from current password!", "statusCode": 400}
+        )
+
+    hashed_new_pwd = hash_password(payload.newPassword)
+    now_str = datetime.utcnow().isoformat()
+    await db["users"].update_one(
+        {"_id": user_id},
+        {"$set": {"password": hashed_new_pwd, "updatedAt": now_str}}
+    )
+
+    return JSONResponse(
+        status_code=status.HTTP_200_OK,
+        content={
+            "status": True,
+            "data": None,
+            "message": "Password updated successfully!",
+            "statusCode": 200
+        }
+    )
+
 class UpdateProfileRequest(BaseModel):
     fullName: Optional[str] = None
     primaryNumber: Optional[str] = None
