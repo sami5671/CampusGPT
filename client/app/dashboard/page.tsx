@@ -29,6 +29,7 @@ export default function DashboardPage() {
     setActiveConversationId,
     selectedMessages,
     triggerSidebarRefresh,
+    newChatTrigger,
   } = useChatSession()
 
   useEffect(() => {
@@ -37,7 +38,7 @@ export default function DashboardPage() {
     } else {
       setMessages([defaultWelcomeMessage])
     }
-  }, [selectedMessages])
+  }, [selectedMessages, newChatTrigger])
 
   const handleSendMessage = async (content: string) => {
     const userMessage: Message = {

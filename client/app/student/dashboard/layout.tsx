@@ -20,6 +20,7 @@ function StudentDashboardContent({ children }: { children: React.ReactNode }) {
     refreshTrigger,
     setSelectedMessages,
     triggerSidebarRefresh,
+    startNewChat,
   } = useChatSession()
 
   useEffect(() => {
@@ -68,11 +69,6 @@ function StudentDashboardContent({ children }: { children: React.ReactNode }) {
     }
   }
 
-  const handleNewChat = () => {
-    setActiveConversationId(null)
-    setSelectedMessages(null)
-  }
-
   if (loading) {
     return (
       <div className="flex h-screen w-full items-center justify-center bg-[#0f0117] text-white">
@@ -92,7 +88,7 @@ function StudentDashboardContent({ children }: { children: React.ReactNode }) {
         onOpenChange={setSidebarOpen}
         activeConversationId={activeConversationId}
         onSelectConversation={handleSelectConversation}
-        onNewChat={handleNewChat}
+        onNewChat={startNewChat}
         refreshTrigger={refreshTrigger}
       />
 
