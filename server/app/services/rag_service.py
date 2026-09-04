@@ -239,10 +239,38 @@ class RAGService:
                         meta = doc["metadata"]
                         t_name = str(meta.get("templateName") or meta.get("name") or "").lower()
                         t_desc = str(meta.get("description", "")).lower()
+                        generic_template_terms = {
+                            "application", "applications", "template", "templates", "form", "forms",
+                            "doc", "document", "download", "pdf", "file", "paper", "link", "please",
+                            "give", "me", "show", "want", "need", "get", "for", "the", "a", "an", "is",
+                            "of", "to", "in", "can", "how", "what", "where", "i", "my", "your", "help",
+                            "any", "all", "list", "available", "there", "are", "do", "you", "have"
+                        }
                         for word in query_lower.split():
-                            clean_w = word.strip(".,()?!")
-                            if len(clean_w) > 2 and (clean_w in t_name or clean_w in t_desc):
-                                similarities[i] += 0.35
+                            clean_w = word.strip(".,()?!\"'")
+                            if len(clean_w) > 2 and clean_w not in generic_template_terms:
+                                if clean_w in t_name:
+                                    similarities[i] += 0.50
+                    elif doc["type"] == "office":
+                        meta = doc["metadata"]
+                        o_name = str(meta.get("officeName") or meta.get("name") or "").lower()
+                        o_bldg = str(meta.get("building", "")).lower()
+                        generic_office_terms = {
+                            "office", "offices", "directory", "directories", "location", "locations",
+                            "building", "buildings", "room", "rooms", "contact", "contacts", "map",
+                            "maps", "email", "phone", "hours", "timing", "time", "where", "is", "the",
+                            "a", "an", "for", "in", "at", "details", "info", "information", "please",
+                            "give", "me", "show", "want", "need", "get", "can", "how", "what", "i",
+                            "my", "your", "help", "any", "all", "list", "available", "there", "are",
+                            "do", "you", "have", "manage", "official"
+                        }
+                        for word in query_lower.split():
+                            clean_w = word.strip(".,()?!\"'")
+                            if len(clean_w) > 2 and clean_w not in generic_office_terms:
+                                if clean_w in o_name:
+                                    similarities[i] += 0.50
+                                elif clean_w in o_bldg:
+                                    similarities[i] += 0.25
 
                 top_indices = np.argsort(similarities)[::-1][:top_k]
 
@@ -260,6 +288,83 @@ class RAGService:
                     intent_keywords = ["announcement", "notice", "news", "class", "schedule", "office", "routine"]
                     if faculty_matches and not any(k in query_lower for k in intent_keywords):
                         return faculty_matches[:2]
+
+                # Smart filter for template queries: if query is asking for a specific application form/template,
+                # filter results to ONLY return the specific template requested instead of all templates.
+                generic_template_terms = {
+                    "application", "applications", "template", "templates", "form", "forms",
+                    "doc", "document", "download", "pdf", "file", "paper", "link", "please",
+                    "give", "me", "show", "want", "need", "get", "for", "the", "a", "an", "is",
+                    "of", "to", "in", "can", "how", "what", "where", "i", "my", "your", "help",
+                    "any", "all", "list", "available", "there", "are", "do", "you", "have"
+                }
+                query_tokens = [w.strip(".,()?!\"'") for w in query_lower.split() if len(w.strip(".,()?!\"'")) > 2]
+                specific_topic_words = [w for w in query_tokens if w not in generic_template_terms]
+
+                if specific_topic_words:
+                    all_template_matches = []
+                    for doc in self.documents:
+                        if doc["type"] == "template":
+                            meta = doc["metadata"]
+                            t_name = str(meta.get("templateName") or meta.get("name") or "").lower()
+                            t_desc = str(meta.get("description", "")).lower()
+
+                            match_score = 0
+                            for word in specific_topic_words:
+                                if word in t_name:
+                                    match_score += 3
+                                elif word in t_desc:
+                                    match_score += 1
+
+                            if match_score > 0:
+                                item = doc.copy()
+                                item["score"] = 0.90 + (match_score * 0.05)
+                                all_template_matches.append((item, match_score))
+
+                    if all_template_matches:
+                        max_match_score = max(m[1] for m in all_template_matches)
+                        best_templates = [m[0] for m in all_template_matches if m[1] == max_match_score]
+                        non_template_results = [r for r in results if r["type"] != "template"]
+                        results = best_templates + non_template_results
+
+                # Smart filter for office queries: if query is asking for a specific office location/directory,
+                # filter results to ONLY return the specific office requested instead of all offices.
+                generic_office_terms = {
+                    "office", "offices", "directory", "directories", "location", "locations",
+                    "building", "buildings", "room", "rooms", "contact", "contacts", "map",
+                    "maps", "email", "phone", "hours", "timing", "time", "where", "is", "the",
+                    "a", "an", "for", "in", "at", "details", "info", "information", "please",
+                    "give", "me", "show", "want", "need", "get", "can", "how", "what", "i",
+                    "my", "your", "help", "any", "all", "list", "available", "there", "are",
+                    "do", "you", "have", "manage", "official"
+                }
+                office_topic_words = [w for w in query_tokens if w not in generic_office_terms]
+
+                if office_topic_words:
+                    all_office_matches = []
+                    for doc in self.documents:
+                        if doc["type"] == "office":
+                            meta = doc["metadata"]
+                            o_name = str(meta.get("officeName") or meta.get("name") or "").lower()
+                            o_bldg = str(meta.get("building", "")).lower()
+
+                            match_score = 0
+                            for word in office_topic_words:
+                                if word in o_name:
+                                    match_score += 3
+                                elif word in o_bldg:
+                                    match_score += 1
+
+                            if match_score > 0:
+                                item = doc.copy()
+                                item["score"] = 0.90 + (match_score * 0.05)
+                                all_office_matches.append((item, match_score))
+
+                    if all_office_matches:
+                        max_match_score = max(m[1] for m in all_office_matches)
+                        best_offices = [m[0] for m in all_office_matches if m[1] == max_match_score]
+                        non_office_results = [r for r in results if r["type"] != "office"]
+                        results = best_offices + non_office_results
 
                 return results
             except Exception as e:
@@ -383,6 +488,14 @@ class RAGService:
             if is_head_query and len(relevant_docs) > 0 and relevant_docs[0]["type"] == "faculty":
                 head_meta = relevant_docs[0]["metadata"]
                 header_intro = f"The **{head_meta.get('designation', 'Department Head').strip()}** of **{head_meta.get('department').strip()}** is **{head_meta.get('name').strip()}**:\n\n"
+            elif len(relevant_docs) == 1 and relevant_docs[0]["type"] == "template":
+                temp_meta = relevant_docs[0]["metadata"]
+                t_name = temp_meta.get('templateName') or temp_meta.get('name') or 'Application Template'
+                header_intro = f"Here is the official **{t_name}** form you requested:\n\n"
+            elif len(relevant_docs) == 1 and relevant_docs[0]["type"] == "office":
+                off_meta = relevant_docs[0]["metadata"]
+                o_name = off_meta.get('officeName') or off_meta.get('name') or 'Campus Office'
+                header_intro = f"Here are the details and location map for the official **{o_name}**:\n\n"
             else:
                 header_intro = "Here is the relevant information found from our campus database:\n\n"
 
