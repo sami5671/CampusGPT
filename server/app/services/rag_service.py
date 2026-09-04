@@ -289,82 +289,108 @@ class RAGService:
                     if faculty_matches and not any(k in query_lower for k in intent_keywords):
                         return faculty_matches[:2]
 
-                # Smart filter for template queries: if query is asking for a specific application form/template,
-                # filter results to ONLY return the specific template requested instead of all templates.
-                generic_template_terms = {
-                    "application", "applications", "template", "templates", "form", "forms",
-                    "doc", "document", "download", "pdf", "file", "paper", "link", "please",
-                    "give", "me", "show", "want", "need", "get", "for", "the", "a", "an", "is",
-                    "of", "to", "in", "can", "how", "what", "where", "i", "my", "your", "help",
-                    "any", "all", "list", "available", "there", "are", "do", "you", "have"
-                }
+                # Strict Intent Segregation & Entity Filtering
+                office_intent_keywords = {"office", "offices", "directory", "directories", "building", "buildings", "room", "rooms", "map", "maps", "location", "locations"}
+                template_intent_keywords = {"template", "templates", "application", "applications", "form", "forms", "download"}
+
+                is_office_query = any(k in query_lower for k in office_intent_keywords)
+                is_template_query = any(k in query_lower for k in template_intent_keywords)
+
                 query_tokens = [w.strip(".,()?!\"'") for w in query_lower.split() if len(w.strip(".,()?!\"'")) > 2]
-                specific_topic_words = [w for w in query_tokens if w not in generic_template_terms]
 
-                if specific_topic_words:
-                    all_template_matches = []
-                    for doc in self.documents:
-                        if doc["type"] == "template":
-                            meta = doc["metadata"]
-                            t_name = str(meta.get("templateName") or meta.get("name") or "").lower()
-                            t_desc = str(meta.get("description", "")).lower()
+                # STRICT RULE 1: If query is specifically about an Office Directory / Office:
+                # Completely strip out all application templates from results!
+                if is_office_query and not is_template_query:
+                    results = [r for r in results if r["type"] != "template"]
 
-                            match_score = 0
-                            for word in specific_topic_words:
-                                if word in t_name:
-                                    match_score += 3
-                                elif word in t_desc:
-                                    match_score += 1
+                    generic_office_terms = {
+                        "office", "offices", "directory", "directories", "location", "locations",
+                        "building", "buildings", "room", "rooms", "contact", "contacts", "map",
+                        "maps", "email", "phone", "hours", "timing", "time", "where", "is", "the",
+                        "a", "an", "for", "in", "at", "details", "info", "information", "please",
+                        "give", "me", "show", "want", "need", "get", "can", "how", "what", "i",
+                        "my", "your", "help", "any", "all", "list", "available", "there", "are",
+                        "do", "you", "have", "manage", "official", "campus"
+                    }
+                    office_topic_words = [w for w in query_tokens if w not in generic_office_terms]
 
-                            if match_score > 0:
-                                item = doc.copy()
-                                item["score"] = 0.90 + (match_score * 0.05)
-                                all_template_matches.append((item, match_score))
+                    if office_topic_words:
+                        all_office_matches = []
+                        for doc in self.documents:
+                            if doc["type"] == "office":
+                                meta = doc["metadata"]
+                                o_name = str(meta.get("officeName") or meta.get("name") or "").lower()
+                                o_bldg = str(meta.get("building", "")).lower()
 
-                    if all_template_matches:
-                        max_match_score = max(m[1] for m in all_template_matches)
-                        best_templates = [m[0] for m in all_template_matches if m[1] == max_match_score]
-                        non_template_results = [r for r in results if r["type"] != "template"]
-                        results = best_templates + non_template_results
+                                match_score = 0
+                                for word in office_topic_words:
+                                    if word in o_name:
+                                        match_score += 3
+                                    elif word in o_bldg:
+                                        match_score += 1
 
-                # Smart filter for office queries: if query is asking for a specific office location/directory,
-                # filter results to ONLY return the specific office requested instead of all offices.
-                generic_office_terms = {
-                    "office", "offices", "directory", "directories", "location", "locations",
-                    "building", "buildings", "room", "rooms", "contact", "contacts", "map",
-                    "maps", "email", "phone", "hours", "timing", "time", "where", "is", "the",
-                    "a", "an", "for", "in", "at", "details", "info", "information", "please",
-                    "give", "me", "show", "want", "need", "get", "can", "how", "what", "i",
-                    "my", "your", "help", "any", "all", "list", "available", "there", "are",
-                    "do", "you", "have", "manage", "official"
-                }
-                office_topic_words = [w for w in query_tokens if w not in generic_office_terms]
+                                if match_score > 0:
+                                    item = doc.copy()
+                                    item["score"] = 0.90 + (match_score * 0.05)
+                                    all_office_matches.append((item, match_score))
 
-                if office_topic_words:
-                    all_office_matches = []
-                    for doc in self.documents:
-                        if doc["type"] == "office":
-                            meta = doc["metadata"]
-                            o_name = str(meta.get("officeName") or meta.get("name") or "").lower()
-                            o_bldg = str(meta.get("building", "")).lower()
+                        if all_office_matches:
+                            max_match_score = max(m[1] for m in all_office_matches)
+                            best_offices = [m[0] for m in all_office_matches if m[1] == max_match_score]
+                            results = best_offices
 
-                            match_score = 0
-                            for word in office_topic_words:
-                                if word in o_name:
-                                    match_score += 3
-                                elif word in o_bldg:
-                                    match_score += 1
+                    # If no specific office matched, return all offices
+                    if not any(r["type"] == "office" for r in results):
+                        all_offices = [doc for doc in self.documents if doc["type"] == "office"]
+                        if all_offices:
+                            results = all_offices
 
-                            if match_score > 0:
-                                item = doc.copy()
-                                item["score"] = 0.90 + (match_score * 0.05)
-                                all_office_matches.append((item, match_score))
+                    # Enforce strict removal of any template documents
+                    results = [r for r in results if r["type"] != "template"]
+                    return results
 
-                    if all_office_matches:
-                        max_match_score = max(m[1] for m in all_office_matches)
-                        best_offices = [m[0] for m in all_office_matches if m[1] == max_match_score]
-                        non_office_results = [r for r in results if r["type"] != "office"]
-                        results = best_offices + non_office_results
+                # STRICT RULE 2: If query is specifically about an Application Template:
+                # Completely strip out all office documents from results!
+                if is_template_query and not is_office_query:
+                    results = [r for r in results if r["type"] != "office"]
+
+                    generic_template_terms = {
+                        "application", "applications", "template", "templates", "form", "forms",
+                        "doc", "document", "download", "pdf", "file", "paper", "link", "please",
+                        "give", "me", "show", "want", "need", "get", "for", "the", "a", "an", "is",
+                        "of", "to", "in", "can", "how", "what", "where", "i", "my", "your", "help",
+                        "any", "all", "list", "available", "there", "are", "do", "you", "have", "campus"
+                    }
+                    specific_topic_words = [w for w in query_tokens if w not in generic_template_terms]
+
+                    if specific_topic_words:
+                        all_template_matches = []
+                        for doc in self.documents:
+                            if doc["type"] == "template":
+                                meta = doc["metadata"]
+                                t_name = str(meta.get("templateName") or meta.get("name") or "").lower()
+                                t_desc = str(meta.get("description", "")).lower()
+
+                                match_score = 0
+                                for word in specific_topic_words:
+                                    if word in t_name:
+                                        match_score += 3
+                                    elif word in t_desc:
+                                        match_score += 1
+
+                                if match_score > 0:
+                                    item = doc.copy()
+                                    item["score"] = 0.90 + (match_score * 0.05)
+                                    all_template_matches.append((item, match_score))
+
+                        if all_template_matches:
+                            max_match_score = max(m[1] for m in all_template_matches)
+                            best_templates = [m[0] for m in all_template_matches if m[1] == max_match_score]
+                            results = best_templates
+
+                    # Enforce strict removal of any office documents
+                    results = [r for r in results if r["type"] != "office"]
+                    return results
 
                 return results
             except Exception as e:
