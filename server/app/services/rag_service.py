@@ -114,16 +114,17 @@ class RAGService:
             office_cursor = db["offices"].find({})
             offices = await office_cursor.to_list(length=1000)
             for o in offices:
-                name = clean_html(o.get("name") or o.get("officeName") or "Office")
+                name = clean_html(o.get("officeName") or o.get("name") or "Office")
                 building = clean_html(o.get("building") or "Campus Building")
                 room = clean_html(o.get("room") or "N/A")
                 email = clean_html(o.get("email") or "N/A")
-                phone = clean_html(o.get("phone") or "N/A")
-                hours = clean_html(o.get("hours") or o.get("operatingHours") or "N/A")
+                phone = clean_html(o.get("phoneNumber") or o.get("phone") or "N/A")
+                hours = clean_html(o.get("officeHours") or o.get("hours") or "N/A")
+                map_link = clean_html(o.get("mapLink") or "")
 
                 text = (
                     f"Campus Office: {name}. Building: {building}. Room: {room}. "
-                    f"Email: {email}. Phone: {phone}. Operating Hours: {hours}."
+                    f"Email: {email}. Phone: {phone}. Operating Hours: {hours}. Map Link: {map_link}."
                 )
                 docs.append({
                     "id": str(o.get("_id")),
@@ -234,6 +235,14 @@ class RAGService:
                             if len(clean_w) > 3 and clean_w in query_lower:
                                 similarities[i] += 0.40
                                 name_matched_indices.add(i)
+                    elif doc["type"] == "template":
+                        meta = doc["metadata"]
+                        t_name = str(meta.get("templateName") or meta.get("name") or "").lower()
+                        t_desc = str(meta.get("description", "")).lower()
+                        for word in query_lower.split():
+                            clean_w = word.strip(".,()?!")
+                            if len(clean_w) > 2 and (clean_w in t_name or clean_w in t_desc):
+                                similarities[i] += 0.35
 
                 top_indices = np.argsort(similarities)[::-1][:top_k]
 
@@ -353,11 +362,16 @@ class RAGService:
                         f"• {ann_text}"
                     )
                 elif d["type"] == "office":
+                    off_name = meta.get('officeName') or meta.get('name') or 'Office'
+                    off_bldg = meta.get('building') or 'Campus Building'
+                    off_room = meta.get('room') or 'N/A'
+                    off_map = meta.get('mapLink') or f"https://www.google.com/maps/search/?api=1&query={off_name.replace(' ', '+')}+{off_bldg.replace(' ', '+')}"
                     formatted_chunks.append(
-                        f"🏢 **{meta.get('name')}**\n"
-                        f"• **Building**: {meta.get('building')} (Room {meta.get('room')})\n"
+                        f"🏢 **{off_name}**\n"
+                        f"• **Building**: {off_bldg} (Room {off_room})\n"
                         f"• **Email**: {meta.get('email', 'N/A')}\n"
-                        f"• **Hours**: {meta.get('hours', 'N/A')}"
+                        f"• **Hours**: {meta.get('officeHours') or meta.get('hours', 'N/A')}\n"
+                        f"• **Map Location**: {off_map}"
                     )
                 elif d["type"] == "template":
                     formatted_chunks.append(
