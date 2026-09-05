@@ -30,6 +30,7 @@ import {
   OfficeItem, 
   OfficeInput 
 } from '@/actions/office-actions'
+import { PaginationControls } from '@/components/ui/pagination-controls'
 
 const PRESET_OFFICES = [
   'Registration Office',
@@ -60,6 +61,8 @@ export default function OfficeDirectoryPage() {
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
   const [filterCategory, setFilterCategory] = useState<string>('all')
+  const [currentPage, setCurrentPage] = useState(1)
+  const [itemsPerPage, setItemsPerPage] = useState(6)
 
   const [isOpen, setIsOpen] = useState(false)
   const [editingItem, setEditingItem] = useState<OfficeItem | null>(null)
@@ -68,6 +71,11 @@ export default function OfficeDirectoryPage() {
 
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
   const [successMsg, setSuccessMsg] = useState<string | null>(null)
+
+  // Reset page when search or filter category changes
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [searchQuery, filterCategory])
 
   // Fetch offices from MongoDB on load
   const fetchOffices = async () => {
@@ -183,6 +191,12 @@ export default function OfficeDirectoryPage() {
     if (filterCategory === 'all') return matchesSearch
     return matchesSearch && item.officeName.toLowerCase() === filterCategory.toLowerCase()
   })
+
+  const totalPages = Math.ceil(filteredOffices.length / itemsPerPage) || 1
+  const paginatedOffices = filteredOffices.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  )
 
   return (
     <div className="p-6 space-y-6 max-w-7xl mx-auto">
@@ -303,119 +317,133 @@ export default function OfficeDirectoryPage() {
             )}
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
-              <thead className="bg-muted/40 border-b border-border/40 text-xs uppercase font-semibold text-muted-foreground tracking-wider">
-                <tr>
-                  <th className="px-6 py-4">Office Name</th>
-                  <th className="px-6 py-4">Location (Building & Room)</th>
-                  <th className="px-6 py-4">Contact Info</th>
-                  <th className="px-6 py-4">Office Hours</th>
-                  <th className="px-6 py-4">Google Map</th>
-                  <th className="px-6 py-4 text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border/30 text-sm">
-                {filteredOffices.map((item) => (
-                  <tr key={item.id} className="hover:bg-muted/20 transition-colors group">
-                    {/* Office Name */}
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary/20 to-accent/20 border border-primary/30 flex items-center justify-center text-primary font-bold shadow-sm">
-                          <Building2 className="w-5 h-5" />
-                        </div>
-                        <div>
-                          <div className="font-semibold text-foreground group-hover:text-primary transition-colors">
-                            {item.officeName}
-                          </div>
-                          <div className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
-                            <Mail className="w-3 h-3" />
-                            {item.email}
-                          </div>
-                        </div>
-                      </div>
-                    </td>
-
-                    {/* Location */}
-                    <td className="px-6 py-4">
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-1.5 text-foreground font-medium text-xs">
-                          <MapPin className="w-3.5 h-3.5 text-accent" />
-                          {item.building}
-                        </div>
-                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                          <span className="flex items-center gap-1">
-                            <Layers className="w-3 h-3" /> Floor {item.floor}
-                          </span>
-                          <span>•</span>
-                          <span className="flex items-center gap-1">
-                            <DoorOpen className="w-3 h-3" /> Room {item.room}
-                          </span>
-                        </div>
-                      </div>
-                    </td>
-
-                    {/* Phone Number */}
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-1.5 text-xs text-foreground font-medium">
-                        <Phone className="w-3.5 h-3.5 text-muted-foreground" />
-                        {item.phoneNumber}
-                      </div>
-                    </td>
-
-                    {/* Office Hours */}
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-1.5 text-xs text-muted-foreground font-medium bg-muted/30 px-3 py-1.5 rounded-lg border border-border/30 w-fit">
-                        <Clock className="w-3.5 h-3.5 text-primary" />
-                        {item.officeHours}
-                      </div>
-                    </td>
-
-                    {/* Map Link */}
-                    <td className="px-6 py-4">
-                      {item.mapLink ? (
-                        <a
-                          href={item.mapLink}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold bg-accent/10 text-accent border border-accent/20 hover:bg-accent/20 transition-all"
-                        >
-                          <ExternalLink className="w-3.5 h-3.5" />
-                          View Map
-                        </a>
-                      ) : (
-                        <span className="text-xs text-muted-foreground italic">No link</span>
-                      )}
-                    </td>
-
-                    {/* Actions */}
-                    <td className="px-6 py-4 text-right">
-                      <div className="flex items-center justify-end gap-2">
-                        <button
-                          onClick={() => handleEditClick(item)}
-                          title="Edit Office Entry"
-                          className="p-2 rounded-lg bg-muted/40 hover:bg-primary/20 text-muted-foreground hover:text-primary transition-all border border-border/20"
-                        >
-                          <Edit2 className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={() => handleDelete(item.id)}
-                          disabled={deletingId === item.id}
-                          title="Delete Office Entry"
-                          className="p-2 rounded-lg bg-muted/40 hover:bg-red-500/20 text-muted-foreground hover:text-red-500 transition-all border border-border/20 disabled:opacity-50"
-                        >
-                          {deletingId === item.id ? (
-                            <Loader2 className="w-4 h-4 animate-spin text-red-500" />
-                          ) : (
-                            <Trash2 className="w-4 h-4" />
-                          )}
-                        </button>
-                      </div>
-                    </td>
+          <div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse">
+                <thead className="bg-muted/40 border-b border-border/40 text-xs uppercase font-semibold text-muted-foreground tracking-wider">
+                  <tr>
+                    <th className="px-6 py-4">Office Name</th>
+                    <th className="px-6 py-4">Location (Building & Room)</th>
+                    <th className="px-6 py-4">Contact Info</th>
+                    <th className="px-6 py-4">Office Hours</th>
+                    <th className="px-6 py-4">Google Map</th>
+                    <th className="px-6 py-4 text-right">Actions</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody className="divide-y divide-border/30 text-sm">
+                  {paginatedOffices.map((item) => (
+                    <tr key={item.id} className="hover:bg-muted/20 transition-colors group">
+                      {/* Office Name */}
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary/20 to-accent/20 border border-primary/30 flex items-center justify-center text-primary font-bold shadow-sm">
+                            <Building2 className="w-5 h-5" />
+                          </div>
+                          <div>
+                            <div className="font-semibold text-foreground group-hover:text-primary transition-colors">
+                              {item.officeName}
+                            </div>
+                            <div className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
+                              <Mail className="w-3 h-3" />
+                              {item.email}
+                            </div>
+                          </div>
+                        </div>
+                      </td>
+
+                      {/* Location */}
+                      <td className="px-6 py-4">
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-1.5 text-foreground font-medium text-xs">
+                            <MapPin className="w-3.5 h-3.5 text-accent" />
+                            {item.building}
+                          </div>
+                          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                            <span className="flex items-center gap-1">
+                              <Layers className="w-3 h-3" /> Floor {item.floor}
+                            </span>
+                            <span>•</span>
+                            <span className="flex items-center gap-1">
+                              <DoorOpen className="w-3 h-3" /> Room {item.room}
+                            </span>
+                          </div>
+                        </div>
+                      </td>
+
+                      {/* Phone Number */}
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-1.5 text-xs text-foreground font-medium">
+                          <Phone className="w-3.5 h-3.5 text-muted-foreground" />
+                          {item.phoneNumber}
+                        </div>
+                      </td>
+
+                      {/* Office Hours */}
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-1.5 text-xs text-muted-foreground font-medium bg-muted/30 px-3 py-1.5 rounded-lg border border-border/30 w-fit">
+                          <Clock className="w-3.5 h-3.5 text-primary" />
+                          {item.officeHours}
+                        </div>
+                      </td>
+
+                      {/* Map Link */}
+                      <td className="px-6 py-4">
+                        {item.mapLink ? (
+                          <a
+                            href={item.mapLink}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold bg-accent/10 text-accent border border-accent/20 hover:bg-accent/20 transition-all"
+                          >
+                            <ExternalLink className="w-3.5 h-3.5" />
+                            View Map
+                          </a>
+                        ) : (
+                          <span className="text-xs text-muted-foreground italic">No link</span>
+                        )}
+                      </td>
+
+                      {/* Actions */}
+                      <td className="px-6 py-4 text-right">
+                        <div className="flex items-center justify-end gap-2">
+                          <button
+                            onClick={() => handleEditClick(item)}
+                            title="Edit Office Entry"
+                            className="p-2 rounded-lg bg-muted/40 hover:bg-primary/20 text-muted-foreground hover:text-primary transition-all border border-border/20"
+                          >
+                            <Edit2 className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => handleDelete(item.id)}
+                            disabled={deletingId === item.id}
+                            title="Delete Office Entry"
+                            className="p-2 rounded-lg bg-muted/40 hover:bg-red-500/20 text-muted-foreground hover:text-red-500 transition-all border border-border/20 disabled:opacity-50"
+                          >
+                            {deletingId === item.id ? (
+                              <Loader2 className="w-4 h-4 animate-spin text-red-500" />
+                            ) : (
+                              <Trash2 className="w-4 h-4" />
+                            )}
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            <PaginationControls
+              currentPage={currentPage}
+              totalPages={totalPages}
+              totalItems={filteredOffices.length}
+              itemsPerPage={itemsPerPage}
+              onPageChange={setCurrentPage}
+              onItemsPerPageChange={(size) => {
+                setItemsPerPage(size)
+                setCurrentPage(1)
+              }}
+            />
           </div>
         )}
       </Card>

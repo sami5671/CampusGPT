@@ -30,6 +30,7 @@ import {
   TemplateItem, 
   TemplateInput 
 } from '@/actions/template-actions'
+import { PaginationControls } from '@/components/ui/pagination-controls'
 
 const PRESET_TEMPLATES = [
   'Leave Application',
@@ -46,6 +47,8 @@ export default function ApplicationTemplatesPage() {
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
   const [filterCategory, setFilterCategory] = useState<string>('all')
+  const [currentPage, setCurrentPage] = useState(1)
+  const [itemsPerPage, setItemsPerPage] = useState(6)
 
   const [isOpen, setIsOpen] = useState(false)
   const [editingItem, setEditingItem] = useState<TemplateItem | null>(null)
@@ -63,6 +66,11 @@ export default function ApplicationTemplatesPage() {
   const [successMsg, setSuccessMsg] = useState<string | null>(null)
 
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  // Reset page when search or filter category changes
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [searchQuery, filterCategory])
 
   // Fetch templates on component mount
   const fetchTemplates = async () => {
@@ -262,6 +270,12 @@ function compressTemplateImage(file: File, maxWidth = 1200, quality = 0.85): Pro
     return matchesSearch && item.templateName.toLowerCase() === filterCategory.toLowerCase()
   })
 
+  const totalPages = Math.ceil(filteredTemplates.length / itemsPerPage) || 1
+  const paginatedTemplates = filteredTemplates.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  )
+
   return (
     <div className="p-6 space-y-6 max-w-7xl mx-auto">
       {/* Page Header */}
@@ -380,89 +394,106 @@ function compressTemplateImage(file: File, maxWidth = 1200, quality = 0.85): Pro
           )}
         </Card>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredTemplates.map((item) => (
-            <Card 
-              key={item.id}
-              className="group border-border/40 bg-card/60 backdrop-blur-sm overflow-hidden hover:border-primary/50 transition-all duration-300 shadow-lg hover:shadow-primary/10 flex flex-col"
-            >
-              {/* Template Image Preview Header */}
-              <div className="relative h-52 bg-black/40 overflow-hidden flex items-center justify-center border-b border-border/40">
-                <img
-                  src={item.imageUrl}
-                  alt={item.templateName}
-                  className="w-full h-full object-cover object-top group-hover:scale-105 transition-transform duration-500"
-                  onError={(e) => {
-                    (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1568667256549-094345857637?w=600&auto=format&fit=crop&q=60'
-                  }}
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-80 group-hover:opacity-60 transition-opacity" />
+        <div className="space-y-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            {paginatedTemplates.map((item) => (
+              <Card 
+                key={item.id}
+                className="group border-border/40 bg-card/60 backdrop-blur-sm overflow-hidden hover:border-primary/50 transition-all duration-300 shadow-lg hover:shadow-primary/10 flex flex-col"
+              >
+                {/* Template Image Preview Header */}
+                <div className="relative h-52 bg-black/40 overflow-hidden flex items-center justify-center border-b border-border/40">
+                  <img
+                    src={item.imageUrl}
+                    alt={item.templateName}
+                    className="w-full h-full object-cover object-top group-hover:scale-105 transition-transform duration-500"
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1568667256549-094345857637?w=600&auto=format&fit=crop&q=60'
+                    }}
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-80 group-hover:opacity-60 transition-opacity" />
 
-                {/* Badge */}
-                <div className="absolute top-3 left-3 bg-black/60 backdrop-blur-md px-2.5 py-1 rounded-full border border-white/20 text-xs font-semibold text-white flex items-center gap-1.5">
-                  <FileCheck className="w-3.5 h-3.5 text-emerald-400" />
-                  {item.templateName}
-                </div>
-
-                {/* View Image Action Overlay */}
-                <button
-                  onClick={() => setViewImageModalUrl(item.imageUrl)}
-                  className="absolute bottom-3 right-3 p-2 rounded-xl bg-black/70 hover:bg-primary text-white border border-white/20 transition-all shadow-lg flex items-center gap-1.5 text-xs font-medium"
-                >
-                  <Eye className="w-4 h-4" />
-                  <span>Preview</span>
-                </button>
-              </div>
-
-              {/* Card Body */}
-              <div className="p-5 flex-1 flex flex-col justify-between space-y-4">
-                <div>
-                  <h3 className="font-bold text-lg text-foreground group-hover:text-primary transition-colors">
+                  {/* Badge */}
+                  <div className="absolute top-3 left-3 bg-black/60 backdrop-blur-md px-2.5 py-1 rounded-full border border-white/20 text-xs font-semibold text-white flex items-center gap-1.5">
+                    <FileCheck className="w-3.5 h-3.5 text-emerald-400" />
                     {item.templateName}
-                  </h3>
-                  {item.description ? (
-                    <p className="text-xs text-muted-foreground mt-1 line-clamp-2 leading-relaxed">
-                      {item.description}
-                    </p>
-                  ) : (
-                    <p className="text-xs text-muted-foreground/60 italic mt-1">
-                      Official university application template format.
-                    </p>
-                  )}
+                  </div>
+
+                  {/* View Image Action Overlay */}
+                  <button
+                    onClick={() => setViewImageModalUrl(item.imageUrl)}
+                    className="absolute bottom-3 right-3 p-2 rounded-xl bg-black/70 hover:bg-primary text-white border border-white/20 transition-all shadow-lg flex items-center gap-1.5 text-xs font-medium"
+                  >
+                    <Eye className="w-4 h-4" />
+                    <span>Preview</span>
+                  </button>
                 </div>
 
-                {/* Actions Footer */}
-                <div className="flex items-center justify-between pt-3 border-t border-border/30">
-                  <a
-                    href={item.imageUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-xs text-primary hover:underline flex items-center gap-1 font-medium"
-                  >
-                    <ExternalLink className="w-3.5 h-3.5" />
-                    Cloudinary Link
-                  </a>
+                {/* Card Body */}
+                <div className="p-5 flex-1 flex flex-col justify-between space-y-4">
+                  <div>
+                    <h3 className="font-bold text-lg text-foreground group-hover:text-primary transition-colors">
+                      {item.templateName}
+                    </h3>
+                    {item.description ? (
+                      <p className="text-xs text-muted-foreground mt-1 line-clamp-2 leading-relaxed">
+                        {item.description}
+                      </p>
+                    ) : (
+                      <p className="text-xs text-muted-foreground/60 italic mt-1">
+                        Official university application template format.
+                      </p>
+                    )}
+                  </div>
 
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => handleEditClick(item)}
-                      title="Edit Template"
-                      className="p-2 rounded-lg bg-muted/40 hover:bg-primary/20 text-muted-foreground hover:text-primary transition-all border border-border/20"
+                  {/* Actions Footer */}
+                  <div className="flex items-center justify-between pt-3 border-t border-border/30">
+                    <a
+                      href={item.imageUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-xs text-primary hover:underline flex items-center gap-1 font-medium"
                     >
-                      <Edit2 className="w-4 h-4" />
-                    </button>
-                    <button
-                      onClick={() => handleOpenDeleteModal(item)}
-                      title="Delete Template"
-                      className="p-2 rounded-lg bg-muted/40 hover:bg-red-500/20 text-muted-foreground hover:text-red-500 transition-all border border-border/20"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
+                      <ExternalLink className="w-3.5 h-3.5" />
+                      Cloudinary Link
+                    </a>
+
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => handleEditClick(item)}
+                        title="Edit Template"
+                        className="p-2 rounded-lg bg-muted/40 hover:bg-primary/20 text-muted-foreground hover:text-primary transition-all border border-border/20"
+                      >
+                        <Edit2 className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => handleOpenDeleteModal(item)}
+                        title="Delete Template"
+                        className="p-2 rounded-lg bg-muted/40 hover:bg-red-500/20 text-muted-foreground hover:text-red-500 transition-all border border-border/20"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
                   </div>
                 </div>
-              </div>
-            </Card>
-          ))}
+              </Card>
+            ))}
+          </div>
+
+          <Card className="border-border/40 bg-card/50 overflow-hidden shadow-lg">
+            <PaginationControls
+              currentPage={currentPage}
+              totalPages={totalPages}
+              totalItems={filteredTemplates.length}
+              itemsPerPage={itemsPerPage}
+              onPageChange={setCurrentPage}
+              onItemsPerPageChange={(size) => {
+                setItemsPerPage(size)
+                setCurrentPage(1)
+              }}
+              pageSizeOptions={[3, 6, 9, 12]}
+            />
+          </Card>
         </div>
       )}
 

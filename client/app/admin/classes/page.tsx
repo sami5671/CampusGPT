@@ -35,6 +35,7 @@ import {
   ClassItem, 
   ClassInput 
 } from '@/actions/class-actions'
+import { PaginationControls } from '@/components/ui/pagination-controls'
 
 const WEEK_DAYS = [
   'Saturday',
@@ -169,6 +170,8 @@ export default function ClassesPage() {
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
   const [filterStatus, setFilterStatus] = useState<string>('all')
+  const [currentPage, setCurrentPage] = useState(1)
+  const [itemsPerPage, setItemsPerPage] = useState(6)
 
   const [isOpen, setIsOpen] = useState(false)
   const [editingItem, setEditingItem] = useState<ClassItem | null>(null)
@@ -177,6 +180,11 @@ export default function ClassesPage() {
 
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
   const [successMsg, setSuccessMsg] = useState<string | null>(null)
+
+  // Reset page when search query or filter status changes
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [searchQuery, filterStatus])
 
   // Fetch classes from backend MongoDB
   const fetchClasses = async () => {
@@ -333,6 +341,12 @@ export default function ClassesPage() {
     if (filterStatus === 'all') return matchesSearch
     return matchesSearch && liveStatus === filterStatus
   })
+
+  const totalPages = Math.ceil(filteredClasses.length / itemsPerPage) || 1
+  const paginatedClasses = filteredClasses.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  )
 
   // Helper badge renderer for class status
   const renderStatusBadge = (startTime: string, endTime: string, days?: string[]) => {
@@ -502,117 +516,131 @@ export default function ClassesPage() {
             )}
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
-              <thead className="bg-muted/40 border-b border-border/40 text-xs uppercase font-semibold text-muted-foreground tracking-wider">
-                <tr>
-                  <th className="px-6 py-4">Course Info</th>
-                  <th className="px-6 py-4">Instructor & Department</th>
-                  <th className="px-6 py-4">Building & Room</th>
-                  <th className="px-6 py-4">Days & Time (BST)</th>
-                  <th className="px-6 py-4">Live Status</th>
-                  <th className="px-6 py-4 text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border/30 text-sm">
-                {filteredClasses.map((item) => (
-                  <tr key={item.id} className="hover:bg-muted/20 transition-colors group">
-                    {/* Course Info */}
-                    <td className="px-6 py-4">
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-2">
-                          <span className="font-extrabold text-foreground px-2 py-0.5 rounded-md bg-primary/10 text-primary border border-primary/20 text-xs">
-                            {item.courseCode}
-                          </span>
-                          <span className="text-xs text-muted-foreground flex items-center gap-1">
-                            <Calendar className="w-3 h-3" /> {item.semester}
-                          </span>
-                        </div>
-                        <div className="font-semibold text-foreground group-hover:text-primary transition-colors text-base">
-                          {item.courseTitle}
-                        </div>
-                      </div>
-                    </td>
-
-                    {/* Instructor & Dept */}
-                    <td className="px-6 py-4">
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-1.5 text-foreground font-medium">
-                          <User className="w-3.5 h-3.5 text-primary" />
-                          {item.instructorName}
-                        </div>
-                        <div className="text-xs text-muted-foreground font-medium">
-                          {item.department}
-                        </div>
-                      </div>
-                    </td>
-
-                    {/* Building & Room */}
-                    <td className="px-6 py-4">
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-1.5 text-foreground text-xs font-semibold">
-                          <Building2 className="w-3.5 h-3.5 text-accent" />
-                          {item.buildingName}
-                        </div>
-                        <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                          <MapPin className="w-3 h-3 text-muted-foreground" />
-                          {item.roomNumber}
-                        </div>
-                      </div>
-                    </td>
-
-                    {/* Days & Time */}
-                    <td className="px-6 py-4">
-                      <div className="space-y-1.5">
-                        <div className="flex flex-wrap gap-1">
-                          {item.days && item.days.length > 0 ? (
-                            item.days.map((day) => (
-                              <span
-                                key={day}
-                                className="px-1.5 py-0.5 rounded text-[11px] font-semibold bg-primary/15 text-primary border border-primary/25"
-                              >
-                                {day.substring(0, 3)}
-                              </span>
-                            ))
-                          ) : (
-                            <span className="text-xs text-muted-foreground italic">No days set</span>
-                          )}
-                        </div>
-                        <div className="flex items-center gap-1.5 text-xs font-semibold text-foreground bg-muted/40 px-2.5 py-1 rounded-md border border-border/30 w-fit">
-                          <Clock className="w-3 h-3 text-primary" />
-                          <span>{item.startTime} - {item.endTime}</span>
-                        </div>
-                      </div>
-                    </td>
-
-                    {/* Dynamic Status */}
-                    <td className="px-6 py-4">
-                      {renderStatusBadge(item.startTime, item.endTime, item.days)}
-                    </td>
-
-                    {/* Actions */}
-                    <td className="px-6 py-4 text-right">
-                      <div className="flex items-center justify-end gap-2">
-                        <button
-                          onClick={() => handleEditClick(item)}
-                          title="Edit Class"
-                          className="p-2 rounded-lg bg-muted/40 hover:bg-primary/20 text-muted-foreground hover:text-primary transition-all border border-border/20"
-                        >
-                          <Edit2 className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={() => handleOpenDeleteModal(item)}
-                          title="Delete Class"
-                          className="p-2 rounded-lg bg-muted/40 hover:bg-red-500/20 text-muted-foreground hover:text-red-500 transition-all border border-border/20"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </td>
+          <div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse">
+                <thead className="bg-muted/40 border-b border-border/40 text-xs uppercase font-semibold text-muted-foreground tracking-wider">
+                  <tr>
+                    <th className="px-6 py-4">Course Info</th>
+                    <th className="px-6 py-4">Instructor & Department</th>
+                    <th className="px-6 py-4">Building & Room</th>
+                    <th className="px-6 py-4">Days & Time (BST)</th>
+                    <th className="px-6 py-4">Live Status</th>
+                    <th className="px-6 py-4 text-right">Actions</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody className="divide-y divide-border/30 text-sm">
+                  {paginatedClasses.map((item) => (
+                    <tr key={item.id} className="hover:bg-muted/20 transition-colors group">
+                      {/* Course Info */}
+                      <td className="px-6 py-4">
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-2">
+                            <span className="font-extrabold text-foreground px-2 py-0.5 rounded-md bg-primary/10 text-primary border border-primary/20 text-xs">
+                              {item.courseCode}
+                            </span>
+                            <span className="text-xs text-muted-foreground flex items-center gap-1">
+                              <Calendar className="w-3 h-3" /> {item.semester}
+                            </span>
+                          </div>
+                          <div className="font-semibold text-foreground group-hover:text-primary transition-colors text-base">
+                            {item.courseTitle}
+                          </div>
+                        </div>
+                      </td>
+
+                      {/* Instructor & Dept */}
+                      <td className="px-6 py-4">
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-1.5 text-foreground font-medium">
+                            <User className="w-3.5 h-3.5 text-primary" />
+                            {item.instructorName}
+                          </div>
+                          <div className="text-xs text-muted-foreground font-medium">
+                            {item.department}
+                          </div>
+                        </div>
+                      </td>
+
+                      {/* Building & Room */}
+                      <td className="px-6 py-4">
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-1.5 text-foreground text-xs font-semibold">
+                            <Building2 className="w-3.5 h-3.5 text-accent" />
+                            {item.buildingName}
+                          </div>
+                          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                            <MapPin className="w-3 h-3 text-muted-foreground" />
+                            {item.roomNumber}
+                          </div>
+                        </div>
+                      </td>
+
+                      {/* Days & Time */}
+                      <td className="px-6 py-4">
+                        <div className="space-y-1.5">
+                          <div className="flex flex-wrap gap-1">
+                            {item.days && item.days.length > 0 ? (
+                              item.days.map((day) => (
+                                <span
+                                  key={day}
+                                  className="px-1.5 py-0.5 rounded text-[11px] font-semibold bg-primary/15 text-primary border border-primary/25"
+                                >
+                                  {day.substring(0, 3)}
+                                </span>
+                              ))
+                            ) : (
+                              <span className="text-xs text-muted-foreground italic">No days set</span>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-1.5 text-xs font-semibold text-foreground bg-muted/40 px-2.5 py-1 rounded-md border border-border/30 w-fit">
+                            <Clock className="w-3 h-3 text-primary" />
+                            <span>{item.startTime} - {item.endTime}</span>
+                          </div>
+                        </div>
+                      </td>
+
+                      {/* Dynamic Status */}
+                      <td className="px-6 py-4">
+                        {renderStatusBadge(item.startTime, item.endTime, item.days)}
+                      </td>
+
+                      {/* Actions */}
+                      <td className="px-6 py-4 text-right">
+                        <div className="flex items-center justify-end gap-2">
+                          <button
+                            onClick={() => handleEditClick(item)}
+                            title="Edit Class"
+                            className="p-2 rounded-lg bg-muted/40 hover:bg-primary/20 text-muted-foreground hover:text-primary transition-all border border-border/20"
+                          >
+                            <Edit2 className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => handleOpenDeleteModal(item)}
+                            title="Delete Class"
+                            className="p-2 rounded-lg bg-muted/40 hover:bg-red-500/20 text-muted-foreground hover:text-red-500 transition-all border border-border/20"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            <PaginationControls
+              currentPage={currentPage}
+              totalPages={totalPages}
+              totalItems={filteredClasses.length}
+              itemsPerPage={itemsPerPage}
+              onPageChange={setCurrentPage}
+              onItemsPerPageChange={(size) => {
+                setItemsPerPage(size)
+                setCurrentPage(1)
+              }}
+            />
           </div>
         )}
       </Card>

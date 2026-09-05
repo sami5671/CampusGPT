@@ -13,6 +13,7 @@ import {
   FacultyItem, 
   FacultyInput 
 } from '@/actions/faculty-actions'
+import { PaginationControls } from '@/components/ui/pagination-controls'
 
 const initialFormState: FacultyInput = {
   name: '',
@@ -30,6 +31,8 @@ export default function FacultyPage() {
   const [submitting, setSubmitting] = useState(false)
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
+  const [currentPage, setCurrentPage] = useState(1)
+  const [itemsPerPage, setItemsPerPage] = useState(6)
   
   const [isOpen, setIsOpen] = useState(false)
   const [editingItem, setEditingItem] = useState<FacultyItem | null>(null)
@@ -37,6 +40,11 @@ export default function FacultyPage() {
   
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
   const [successMsg, setSuccessMsg] = useState<string | null>(null)
+
+  // Reset page when search query changes
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [searchQuery])
 
   // Fetch faculty members from MongoDB on component mount
   const fetchFacultyData = async () => {
@@ -147,6 +155,12 @@ export default function FacultyPage() {
     item.officeRoom.toLowerCase().includes(searchQuery.toLowerCase())
   )
 
+  const totalPages = Math.ceil(filteredFaculty.length / itemsPerPage) || 1
+  const paginatedFaculty = filteredFaculty.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  )
+
   return (
     <div className="p-6 space-y-6 max-w-7xl mx-auto">
       {/* Header section */}
@@ -229,20 +243,21 @@ export default function FacultyPage() {
             )}
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
-              <thead className="bg-muted/40 border-b border-border/40 text-xs uppercase font-semibold text-muted-foreground tracking-wider">
-                <tr>
-                  <th className="px-6 py-4">Faculty Member</th>
-                  <th className="px-6 py-4">Designation & Department</th>
-                  <th className="px-6 py-4">Office Room</th>
-                  <th className="px-6 py-4">Contact Info</th>
-                  <th className="px-6 py-4">Office Hours</th>
-                  <th className="px-6 py-4 text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border/30 text-sm">
-                {filteredFaculty.map((item) => (
+          <div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse">
+                <thead className="bg-muted/40 border-b border-border/40 text-xs uppercase font-semibold text-muted-foreground tracking-wider">
+                  <tr>
+                    <th className="px-6 py-4">Faculty Member</th>
+                    <th className="px-6 py-4">Designation & Department</th>
+                    <th className="px-6 py-4">Office Room</th>
+                    <th className="px-6 py-4">Contact Info</th>
+                    <th className="px-6 py-4">Office Hours</th>
+                    <th className="px-6 py-4 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border/30 text-sm">
+                  {paginatedFaculty.map((item) => (
                   <tr key={item.id} className="hover:bg-muted/20 transition-colors group">
                     {/* Name */}
                     <td className="px-6 py-4">
@@ -330,6 +345,19 @@ export default function FacultyPage() {
               </tbody>
             </table>
           </div>
+
+          <PaginationControls
+            currentPage={currentPage}
+            totalPages={totalPages}
+            totalItems={filteredFaculty.length}
+            itemsPerPage={itemsPerPage}
+            onPageChange={setCurrentPage}
+            onItemsPerPageChange={(size) => {
+              setItemsPerPage(size)
+              setCurrentPage(1)
+            }}
+          />
+        </div>
         )}
       </Card>
 
