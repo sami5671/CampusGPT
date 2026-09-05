@@ -101,12 +101,11 @@ CORS_ORIGINS=http://localhost:3000
    python3 -m venv venv
    source venv/bin/activate
    ```
-
+   
 3. Install required Python packages:
    ```bash
    pip install -r requirements.txt
    ```
-
 4. Launch the FastAPI server:
    ```bash
    python run.py

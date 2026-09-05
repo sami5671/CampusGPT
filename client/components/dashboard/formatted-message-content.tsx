@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Mail, Phone, MapPin, Clock, Copy, Check, ExternalLink, GraduationCap, Building2, Calendar, Megaphone, FileText, Download } from 'lucide-react'
+import { Mail, Phone, MapPin, Clock, Copy, Check, ExternalLink, GraduationCap, Building2, Calendar, Megaphone, FileText, Download, Loader2 } from 'lucide-react'
 
 interface FormattedMessageContentProps {
   content: string
@@ -9,6 +9,7 @@ interface FormattedMessageContentProps {
 
 export function FormattedMessageContent({ content }: FormattedMessageContentProps) {
   const [copied, setCopied] = useState(false)
+  const [downloadingUrl, setDownloadingUrl] = useState<string | null>(null)
 
   const handleCopy = () => {
     navigator.clipboard.writeText(content)
@@ -16,19 +17,81 @@ export function FormattedMessageContent({ content }: FormattedMessageContentProp
     setTimeout(() => setCopied(false), 2000)
   }
 
-  const handleDownload = (url: string, title: string) => {
+  const handleDownload = async (url: string, title: string) => {
     if (!url || url === 'N/A') return
+
+    setDownloadingUrl(url)
+
     try {
+      // If direct data URI or blob URI
+      if (url.startsWith('data:') || url.startsWith('blob:')) {
+        const link = document.createElement('a')
+        link.href = url
+        const sanitizeTitle = title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') || 'application-template'
+        link.download = `${sanitizeTitle}.png`
+        document.body.appendChild(link)
+        link.click()
+        document.body.removeChild(link)
+        return
+      }
+
+      // Asynchronously fetch image file as Blob to force direct browser download
+      const response = await fetch(url, { mode: 'cors' })
+      if (!response.ok) throw new Error(`HTTP fetch status ${response.status}`)
+
+      const blob = await response.blob()
+
+      // Infer extension from Content-Type or URL
+      let extension = 'png'
+      const contentType = response.headers.get('content-type') || blob.type || ''
+      if (contentType.includes('jpeg') || contentType.includes('jpg')) {
+        extension = 'jpg'
+      } else if (contentType.includes('pdf')) {
+        extension = 'pdf'
+      } else if (contentType.includes('png')) {
+        extension = 'png'
+      } else if (contentType.includes('svg')) {
+        extension = 'svg'
+      } else if (contentType.includes('webp')) {
+        extension = 'webp'
+      } else {
+        const matchExt = url.match(/\.([a-zA-Z0-9]+)(\?|$)/)
+        if (matchExt && matchExt[1] && matchExt[1].length <= 4) {
+          extension = matchExt[1].toLowerCase()
+        }
+      }
+
+      const sanitizeTitle = title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') || 'application-template'
+      const fileName = `${sanitizeTitle}.${extension}`
+
+      const blobUrl = window.URL.createObjectURL(blob)
       const link = document.createElement('a')
-      link.href = url
-      link.target = '_blank'
-      link.download = `${title.toLowerCase().replace(/\s+/g, '-')}-application`
-      link.rel = 'noopener noreferrer'
+      link.href = blobUrl
+      link.download = fileName
       document.body.appendChild(link)
       link.click()
       document.body.removeChild(link)
+
+      setTimeout(() => {
+        window.URL.revokeObjectURL(blobUrl)
+      }, 1000)
     } catch (e) {
-      window.open(url, '_blank', 'noopener,noreferrer')
+      console.warn('Blob fetch failed, falling back to direct anchor download:', e)
+      try {
+        const link = document.createElement('a')
+        link.href = url
+        link.target = '_blank'
+        const sanitizeTitle = title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') || 'application-template'
+        link.download = `${sanitizeTitle}-application`
+        link.rel = 'noopener noreferrer'
+        document.body.appendChild(link)
+        link.click()
+        document.body.removeChild(link)
+      } catch (err) {
+        window.open(url, '_blank', 'noopener,noreferrer')
+      }
+    } finally {
+      setDownloadingUrl(null)
     }
   }
 
@@ -103,15 +166,21 @@ export function FormattedMessageContent({ content }: FormattedMessageContentProp
         )
       }
       if (part.match(urlRegex)) {
+        const isDownloadingThis = downloadingUrl === part
         return (
           <button
             key={idx}
             type="button"
+            disabled={isDownloadingThis}
             onClick={() => handleDownload(part, 'application-document')}
-            className="inline-flex items-center gap-1.5 px-3 py-1 my-1 rounded-lg bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-300 border border-indigo-500/35 text-xs font-semibold transition cursor-pointer"
+            className="inline-flex items-center gap-1.5 px-3 py-1 my-1 rounded-lg bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-300 border border-indigo-500/35 text-xs font-semibold transition cursor-pointer disabled:opacity-75"
           >
-            <Download className="w-3.5 h-3.5 text-indigo-400" />
-            <span>Download Document</span>
+            {isDownloadingThis ? (
+              <Loader2 className="w-3.5 h-3.5 animate-spin text-indigo-400" />
+            ) : (
+              <Download className="w-3.5 h-3.5 text-indigo-400" />
+            )}
+            <span>{isDownloadingThis ? 'Downloading...' : 'Download Document'}</span>
           </button>
         )
       }
@@ -224,7 +293,7 @@ export function FormattedMessageContent({ content }: FormattedMessageContentProp
     )
   }
 
-  // Render Application Template Card with Download Button
+  // Render Application Template Card with Download Button & Image Preview
   const renderTemplateCard = (block: string, key: number) => {
     const lines = block.split('\n')
     let templateName = ''
@@ -260,6 +329,8 @@ export function FormattedMessageContent({ content }: FormattedMessageContentProp
       templateName = firstLine
     }
 
+    const isDownloadingThis = downloadingUrl === downloadUrl
+
     return (
       <div
         key={key}
@@ -285,16 +356,51 @@ export function FormattedMessageContent({ content }: FormattedMessageContentProp
           </p>
         )}
 
+        {/* Image Preview Container */}
+        {downloadUrl && downloadUrl !== 'N/A' && (
+          <div className="relative overflow-hidden rounded-lg border border-indigo-500/25 bg-background/60 p-1.5 shadow-inner">
+            <img
+              src={downloadUrl}
+              alt={templateName}
+              className="w-full max-h-60 object-contain rounded-md transition-transform duration-300 hover:scale-[1.01]"
+              onError={(e) => {
+                // Hide image container if URL is not a direct viewable image
+                const target = e.currentTarget.parentElement
+                if (target) target.style.display = 'none'
+              }}
+            />
+          </div>
+        )}
+
         {downloadUrl && downloadUrl !== 'N/A' ? (
-          <div className="pt-2">
+          <div className="pt-1 flex flex-wrap gap-2 items-center">
             <button
               type="button"
+              disabled={isDownloadingThis}
               onClick={() => handleDownload(downloadUrl, templateName)}
-              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-semibold text-xs shadow-md shadow-indigo-500/25 transition-all transform active:scale-95 cursor-pointer"
+              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-semibold text-xs shadow-md shadow-indigo-500/25 transition-all transform active:scale-95 cursor-pointer disabled:opacity-75 disabled:cursor-not-allowed"
             >
-              <Download className="w-4 h-4 animate-bounce" />
-              <span>Download Application Form</span>
+              {isDownloadingThis ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin text-white" />
+                  <span>Downloading Image...</span>
+                </>
+              ) : (
+                <>
+                  <Download className="w-4 h-4 animate-bounce" />
+                  <span>Download Application Form</span>
+                </>
+              )}
             </button>
+            <a
+              href={downloadUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-card/80 hover:bg-indigo-500/10 text-muted-foreground hover:text-indigo-300 border border-border/50 hover:border-indigo-500/30 font-medium text-xs transition cursor-pointer"
+            >
+              <ExternalLink className="w-3.5 h-3.5" />
+              <span>Preview Original</span>
+            </a>
           </div>
         ) : (
           <div className="pt-2 text-xs text-muted-foreground italic">
