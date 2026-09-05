@@ -346,3 +346,80 @@ export async function updateProfileAction(formData: FormData) {
         return { status: false, error: errorMessage };
     }
 }
+
+// Fetch all registered users (Admin only)
+export async function getAllUsersAction() {
+    try {
+        const res = await apiClient("/auth/users", {
+            method: "GET",
+            cache: "no-store",
+        });
+
+        if (!res?.status) {
+            return {
+                status: false,
+                error: res?.message || "Failed to fetch user list",
+            };
+        }
+
+        return {
+            status: true,
+            data: res.data || [],
+        };
+    } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : "Failed to fetch users";
+        return { status: false, error: errorMessage };
+    }
+}
+
+// Update user role permission (Admin only)
+export async function updateUserRoleAction(userId: string, role: string) {
+    try {
+        const res = await apiClient(`/auth/users/${userId}/role`, {
+            method: "PATCH",
+            body: { role },
+            cache: "no-store",
+        });
+
+        if (!res?.status) {
+            return {
+                status: false,
+                error: res?.message || "Failed to update user role",
+            };
+        }
+
+        return {
+            status: true,
+            message: res?.message || "User role updated successfully!",
+            user: res.data,
+        };
+    } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : "Failed to update role";
+        return { status: false, error: errorMessage };
+    }
+}
+
+// Delete user account (Admin only)
+export async function deleteUserAction(userId: string) {
+    try {
+        const res = await apiClient(`/auth/users/${userId}`, {
+            method: "DELETE",
+            cache: "no-store",
+        });
+
+        if (!res?.status) {
+            return {
+                status: false,
+                error: res?.message || "Failed to delete user",
+            };
+        }
+
+        return {
+            status: true,
+            message: res?.message || "User deleted successfully!",
+        };
+    } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : "Failed to delete user";
+        return { status: false, error: errorMessage };
+    }
+}

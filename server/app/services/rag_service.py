@@ -6,6 +6,7 @@ from typing import List, Dict, Any, Optional
 import numpy as np
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
+from app.routes.classes import compute_dynamic_status
 
 logger = logging.getLogger(__name__)
 
@@ -65,23 +66,44 @@ class RAGService:
             class_cursor = db["classes"].find({})
             classes = await class_cursor.to_list(length=1000)
             for c in classes:
-                name = clean_html(c.get("courseName") or c.get("name") or "Course")
+                title = clean_html(c.get("courseTitle") or c.get("courseName") or c.get("name") or "Course")
                 code = clean_html(c.get("courseCode") or c.get("code") or "")
-                instructor = clean_html(c.get("instructor") or c.get("facultyName") or "N/A")
-                schedule = clean_html(c.get("schedule") or c.get("time") or "N/A")
-                room = clean_html(c.get("room") or c.get("location") or "N/A")
+                instructor = clean_html(c.get("instructorName") or c.get("instructor") or c.get("facultyName") or "N/A")
+                bldg = clean_html(c.get("buildingName") or c.get("building") or "")
+                room = clean_html(c.get("roomNumber") or c.get("room") or "N/A")
+                room_full = f"{bldg} {room}".strip() if bldg else room
+                start_t = clean_html(c.get("startTime", ""))
+                end_t = clean_html(c.get("endTime", ""))
+                time_range = f"{start_t} - {end_t}".strip(" -") if (start_t or end_t) else clean_html(c.get("schedule") or "N/A")
+                days_list = c.get("days", [])
+                days_str = ", ".join(days_list) if isinstance(days_list, list) and days_list else clean_html(str(c.get("days", "")))
                 dept = clean_html(c.get("department") or "")
+                sem = clean_html(c.get("semester") or "")
+
+                live_status = compute_dynamic_status(start_t, end_t, days_list if isinstance(days_list, list) else [])
 
                 text = (
-                    f"Class Course: {name} ({code}). Instructor: {instructor}. "
-                    f"Schedule: {schedule}. Room/Location: {room}. Department: {dept}."
+                    f"Class Course: {title} ({code}). Semester: {sem}. Department: {dept}. "
+                    f"Instructor: {instructor}. Schedule Days: {days_str}. Time: {time_range}. "
+                    f"Building & Room: {room_full}. Live Status: {live_status}."
                 )
+                
+                doc_meta = {
+                    **c,
+                    "clean_courseTitle": title,
+                    "clean_courseCode": code,
+                    "clean_instructorName": instructor,
+                    "clean_room": room_full,
+                    "clean_schedule": f"{days_str} ({time_range})" if days_str else time_range,
+                    "live_status": live_status
+                }
+
                 docs.append({
                     "id": str(c.get("_id")),
                     "type": "class",
-                    "title": f"Class: {name}",
+                    "title": f"Class: {title} ({code})",
                     "content": text,
-                    "metadata": c
+                    "metadata": doc_meta
                 })
         except Exception as e:
             logger.error(f"Error indexing class records: {e}")
@@ -292,14 +314,75 @@ class RAGService:
                 # Strict Intent Segregation & Entity Filtering
                 office_intent_keywords = {"office", "offices", "directory", "directories", "building", "buildings", "room", "rooms", "map", "maps", "location", "locations"}
                 template_intent_keywords = {"template", "templates", "application", "applications", "form", "forms", "download"}
+                class_intent_keywords = {"class", "classes", "routine", "routines", "schedule", "schedules", "running", "course", "courses", "timetable", "timings", "lecture", "lectures", "lab", "labs", "today"}
 
                 is_office_query = any(k in query_lower for k in office_intent_keywords)
                 is_template_query = any(k in query_lower for k in template_intent_keywords)
+                is_class_query = any(k in query_lower for k in class_intent_keywords)
 
                 query_tokens = [w.strip(".,()?!\"'") for w in query_lower.split() if len(w.strip(".,()?!\"'")) > 2]
 
-                # STRICT RULE 1: If query is specifically about an Office Directory / Office:
-                # Completely strip out all application templates from results!
+                # STRICT RULE 1: If query is specifically about Class Routine / Schedule / Running Classes:
+                if is_class_query and not is_office_query and not is_template_query:
+                    results = [r for r in results if r["type"] not in ["office", "template"]]
+                    is_running_query = any(k in query_lower for k in ["running", "live", "current", "now"])
+
+                    all_classes = []
+                    for doc in self.documents:
+                        if doc["type"] == "class":
+                            c_meta = doc["metadata"]
+                            start_t = c_meta.get("startTime", "")
+                            end_t = c_meta.get("endTime", "")
+                            days_list = c_meta.get("days", [])
+                            live_st = compute_dynamic_status(start_t, end_t, days_list if isinstance(days_list, list) else [])
+                            doc["metadata"]["live_status"] = live_st
+
+                            match_score = 0
+                            if is_running_query and live_st == "running":
+                                match_score += 5
+
+                            c_title = str(c_meta.get("courseTitle") or c_meta.get("clean_courseTitle") or "").lower()
+                            c_code = str(c_meta.get("courseCode") or "").lower()
+                            c_instructor = str(c_meta.get("instructorName") or "").lower()
+                            c_dept = str(c_meta.get("department") or "").lower()
+
+                            for token in query_tokens:
+                                if len(token) > 2 and token not in class_intent_keywords:
+                                    if token in c_code:
+                                        match_score += 4
+                                    elif token in c_title:
+                                        match_score += 3
+                                    elif token in c_instructor:
+                                        match_score += 2
+                                    elif token in c_dept:
+                                        match_score += 1
+
+                            item = doc.copy()
+                            item["score"] = 0.85 + (match_score * 0.05)
+                            all_classes.append((item, match_score, live_st))
+
+                    if all_classes:
+                        if is_running_query:
+                            running_matches = [c[0] for c in all_classes if c[2] == "running"]
+                            if running_matches:
+                                return running_matches
+
+                        max_score = max(c[1] for c in all_classes)
+                        if max_score > 0:
+                            best_classes = [c[0] for c in all_classes if c[1] == max_score]
+                            return best_classes
+
+                        all_classes_sorted = sorted(all_classes, key=lambda x: (0 if x[2] == "running" else 1))
+                        return [c[0] for c in all_classes_sorted]
+
+                    if not any(r["type"] == "class" for r in results):
+                        all_class_docs = [doc for doc in self.documents if doc["type"] == "class"]
+                        if all_class_docs:
+                            return all_class_docs
+
+                    return results
+
+                # STRICT RULE 2: If query is specifically about an Office Directory / Office:
                 if is_office_query and not is_template_query:
                     results = [r for r in results if r["type"] != "template"]
 
@@ -349,8 +432,7 @@ class RAGService:
                     results = [r for r in results if r["type"] != "template"]
                     return results
 
-                # STRICT RULE 2: If query is specifically about an Application Template:
-                # Completely strip out all office documents from results!
+                # STRICT RULE 3: If query is specifically about an Application Template:
                 if is_template_query and not is_office_query:
                     results = [r for r in results if r["type"] != "office"]
 
@@ -480,11 +562,24 @@ class RAGService:
                         f"• **Contact**: {meta.get('contactNumber', 'N/A')}"
                     )
                 elif d["type"] == "class":
+                    c_title = meta.get("clean_courseTitle") or meta.get("courseTitle") or meta.get("courseName") or "Course"
+                    c_code = meta.get("clean_courseCode") or meta.get("courseCode") or ""
+                    c_instructor = meta.get("clean_instructorName") or meta.get("instructorName") or meta.get("instructor") or "N/A"
+                    c_schedule = meta.get("clean_schedule") or meta.get("schedule") or "N/A"
+                    c_room = meta.get("clean_room") or f"{meta.get('buildingName', '')} {meta.get('roomNumber', '')}".strip() or "N/A"
+                    c_dept = meta.get("department") or "General"
+                    c_status = meta.get("live_status") or "upcoming"
+
+                    status_badge = "🟢 Running Now" if c_status == "running" else ("⏳ Upcoming" if c_status == "upcoming" else "🔴 Class Ended")
+                    code_str = f" ({c_code})" if c_code else ""
+
                     formatted_chunks.append(
-                        f"📚 **{meta.get('courseName', 'Course')}** ({meta.get('courseCode', '')})\n"
-                        f"• **Instructor**: {meta.get('instructor', 'N/A')}\n"
-                        f"• **Schedule**: {meta.get('schedule', 'N/A')}\n"
-                        f"• **Room**: {meta.get('room', 'N/A')}"
+                        f"📚 **{c_title}**{code_str}\n"
+                        f"• **Status**: {status_badge}\n"
+                        f"• **Instructor**: {c_instructor}\n"
+                        f"• **Schedule & Time**: {c_schedule}\n"
+                        f"• **Room / Building**: {c_room}\n"
+                        f"• **Department**: {c_dept}"
                     )
                 elif d["type"] == "announcement":
                     ann_text = meta.get("clean_content") or clean_html(meta.get("content") or meta.get("description", ""))
@@ -514,6 +609,15 @@ class RAGService:
             if is_head_query and len(relevant_docs) > 0 and relevant_docs[0]["type"] == "faculty":
                 head_meta = relevant_docs[0]["metadata"]
                 header_intro = f"The **{head_meta.get('designation', 'Department Head').strip()}** of **{head_meta.get('department').strip()}** is **{head_meta.get('name').strip()}**:\n\n"
+            elif any(d["type"] == "class" for d in relevant_docs):
+                has_running = any(d.get("metadata", {}).get("live_status") == "running" for d in relevant_docs)
+                if any(k in query_lower for k in ["running", "live", "now"]):
+                    if has_running:
+                        header_intro = "🟢 **Live Class Update**: Here are the classes currently running on campus:\n\n"
+                    else:
+                        header_intro = "ℹ️ **No classes are running right now**. Here is the upcoming class schedule:\n\n"
+                else:
+                    header_intro = "📚 Here is the class schedule and routine information from our campus database:\n\n"
             elif len(relevant_docs) == 1 and relevant_docs[0]["type"] == "template":
                 temp_meta = relevant_docs[0]["metadata"]
                 t_name = temp_meta.get('templateName') or temp_meta.get('name') or 'Application Template'
@@ -539,15 +643,28 @@ class RAGService:
 
         # Fallback if no matching records found in database
         total_docs = len(self.documents)
+        clean_query = clean_html(query)
         if total_docs == 0:
             fallback_msg = (
-                "I searched the campus database, but no records (faculty, classes, application templates, or offices) have been added yet.\n\n"
-                "Once information is entered in the Admin portal, I will automatically retrieve and answer questions about it!"
+                "📂 **Campus Database Currently Empty**\n\n"
+                "I searched our university database, but no official records (faculty members, class schedules, offices, or application templates) have been added yet.\n\n"
+                "💡 **What you can do:**\n"
+                "• Administrators can add official campus records via the **Admin Portal**.\n"
+                "• As soon as data is added, I will instantly index it and answer student questions!"
             )
         else:
             fallback_msg = (
-                f"I searched {total_docs} campus records, but I couldn't find specific information matching your query.\n\n"
-                "You can ask me about faculty members (names, departments, office rooms), class schedules, application templates, or campus offices."
+                f"🔍 **No Matching Campus Record Found**\n\n"
+                f"I searched **{total_docs}** verified records in our university database, but couldn't find any data matching **\"{clean_query}\"**.\n\n"
+                "💡 **Try these helpful search tips:**\n"
+                "• **Check Spelling**: Make sure professor names, course codes, or office titles are spelled correctly.\n"
+                "• **Use Keywords**: Search using terms like *\"Software Engineering\"*, *\"CSE Department\"*, *\"Room 402\"*, or *\"Leave Application\"*.\n"
+                "• **Explore Database Topics**:\n"
+                "  - 👨‍🏫 **Faculty Directory**: Professor contacts, office rooms, and office hours.\n"
+                "  - 📚 **Class Schedules**: Timings, course codes, and room locations.\n"
+                "  - 🏢 **Campus Offices**: Administrative desks, floor locations, and emails.\n"
+                "  - 📄 **Application Forms**: Sample templates and downloadable documents.\n\n"
+                "✨ *Tip: Try asking: \"Show me faculty members in Computer Science\" or \"Where is the Registrar Office?\"*"
             )
 
         return {

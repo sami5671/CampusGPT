@@ -1,6 +1,6 @@
 'use client'
 
-import React, { createContext, useContext, useState, useEffect } from 'react'
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react'
 import { 
   handleUserLogin, 
   handleAdminLogout, 
@@ -44,6 +44,8 @@ interface AuthContextType {
   register: (formData: FormData) => Promise<User>
   logout: () => Promise<void>
   updateUser: (updatedData: Partial<User>) => void
+  setSessionUser: (user: any, token?: string) => void
+  syncSession: () => Promise<void>
   isAuthenticated: boolean
 }
 
@@ -53,10 +55,49 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [isLoading, setIsLoading] = useState(true)
 
-  useEffect(() => {
-    // Check for stored session on mount and verify it with the server
-    const syncSession = async () => {
-      const storedUser = typeof window !== 'undefined' ? localStorage.getItem('user') : null
+  const setSessionUser = useCallback((userData: any, token?: string) => {
+    if (!userData) return
+    const mappedUser: User = {
+      ...userData,
+      name: userData.fullName || userData.name || '',
+    }
+    setUser((prev) => {
+      if (prev && prev.id === mappedUser.id && prev.email === mappedUser.email) {
+        return prev
+      }
+      return mappedUser
+    })
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('user', JSON.stringify(mappedUser))
+      if (token) {
+        localStorage.setItem('admin_token', token)
+        localStorage.setItem('token', token)
+      }
+    }
+  }, [])
+
+  const syncSession = useCallback(async () => {
+    const storedUser = typeof window !== 'undefined' ? localStorage.getItem('user') : null
+    if (storedUser) {
+      try {
+        setUser(JSON.parse(storedUser))
+      } catch (e) {
+        localStorage.removeItem('user')
+      }
+    }
+
+    try {
+      const res = await getCurrentUser()
+      if (res.status && res.user) {
+        setSessionUser(res.user, res.token)
+      } else {
+        setUser(null)
+        localStorage.removeItem('user')
+        localStorage.removeItem('admin_token')
+        localStorage.removeItem('token')
+      }
+    } catch (e) {
+      const storedUser = localStorage.getItem('user')
       if (storedUser) {
         try {
           setUser(JSON.parse(storedUser))
@@ -64,42 +105,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           localStorage.removeItem('user')
         }
       }
-
-      try {
-        const res = await getCurrentUser()
-        if (res.status && res.user) {
-          const mappedUser: User = {
-            ...res.user,
-            name: res.user.fullName || res.user.name || '',
-          }
-          setUser(mappedUser)
-          localStorage.setItem('user', JSON.stringify(mappedUser))
-          if (res.token) {
-            localStorage.setItem('admin_token', res.token)
-          }
-        } else {
-          // If server session is invalid, clear client session
-          setUser(null)
-          localStorage.removeItem('user')
-          localStorage.removeItem('admin_token')
-          localStorage.removeItem('token')
-        }
-      } catch (e) {
-        // Fallback to local storage if API call fails (offline/network issue)
-        const storedUser = localStorage.getItem('user')
-        if (storedUser) {
-          try {
-            setUser(JSON.parse(storedUser))
-          } catch (e) {
-            localStorage.removeItem('user')
-          }
-        }
-      } finally {
-        setIsLoading(false)
-      }
+    } finally {
+      setIsLoading(false)
     }
+  }, [setSessionUser])
+
+  useEffect(() => {
     syncSession()
-  }, [])
+  }, [syncSession])
 
   const login = async (email: string, password: string): Promise<User> => {
     setIsLoading(true)
@@ -187,6 +200,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         register,
         logout,
         updateUser,
+        setSessionUser,
+        syncSession,
         isAuthenticated: !!user,
       }}
     >

@@ -17,7 +17,6 @@ import {
   ArrowRight,
   BookOpen,
   IdCard,
-  Building2,
   Check
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -26,7 +25,7 @@ import { handleRegister } from '@/actions/auth-actions'
 
 export default function RegisterPage() {
   const router = useRouter()
-  const [role, setRole] = useState<'student' | 'faculty' | 'staff'>('student')
+  const [role] = useState<'student'>('student')
   const [fullName, setFullName] = useState('')
   const [email, setEmail] = useState('')
   const [idNumber, setIdNumber] = useState('')
@@ -138,42 +137,7 @@ export default function RegisterPage() {
               </Link>
             </div>
 
-            {/* Role Switcher */}
-            <div className="p-1 rounded-xl bg-[#0f0117] border border-[#2d2240] grid grid-cols-3 gap-1">
-              <button
-                type="button"
-                onClick={() => setRole('student')}
-                className={`py-2 text-xs font-semibold rounded-lg transition-all flex items-center justify-center gap-1.5 ${
-                  role === 'student'
-                    ? 'bg-gradient-to-r from-[#3b82f6] to-[#06b6d4] text-white shadow-md'
-                    : 'text-muted-foreground hover:text-white hover:bg-white/5'
-                }`}
-              >
-                <User className="w-3.5 h-3.5" /> Student
-              </button>
-              <button
-                type="button"
-                onClick={() => setRole('faculty')}
-                className={`py-2 text-xs font-semibold rounded-lg transition-all flex items-center justify-center gap-1.5 ${
-                  role === 'faculty'
-                    ? 'bg-gradient-to-r from-[#06b6d4] to-[#a855f7] text-white shadow-md'
-                    : 'text-muted-foreground hover:text-white hover:bg-white/5'
-                }`}
-              >
-                <GraduationCap className="w-3.5 h-3.5" /> Faculty
-              </button>
-              <button
-                type="button"
-                onClick={() => setRole('staff')}
-                className={`py-2 text-xs font-semibold rounded-lg transition-all flex items-center justify-center gap-1.5 ${
-                  role === 'staff'
-                    ? 'bg-gradient-to-r from-[#a855f7] to-[#3b82f6] text-white shadow-md'
-                    : 'text-muted-foreground hover:text-white hover:bg-white/5'
-                }`}
-              >
-                <Building2 className="w-3.5 h-3.5" /> Staff
-              </button>
-            </div>
+
 
             {/* Alerts */}
             {errorMsg && (
@@ -210,7 +174,7 @@ export default function RegisterPage() {
 
                 <div className="space-y-1.5">
                   <label className="text-xs font-medium text-muted-foreground">
-                    {role === 'student' ? 'Student ID' : role === 'faculty' ? 'Faculty ID' : 'Staff ID'}
+                    Student ID
                   </label>
                   <div className="relative">
                     <IdCard className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground" />

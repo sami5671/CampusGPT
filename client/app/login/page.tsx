@@ -21,10 +21,12 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { handleUserLogin, getCurrentUser } from '@/actions/auth-actions'
 import { useEffect } from 'react'
+import { useAuth } from '@/lib/auth-context'
 
 export default function LoginPage() {
   const router = useRouter()
-  const [role, setRole] = useState<'student' | 'faculty' | 'admin'>('student')
+  const { setSessionUser } = useAuth()
+  const [role, setRole] = useState<'student' | 'admin'>('student')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
@@ -37,12 +39,13 @@ export default function LoginPage() {
     async function checkExistingSession() {
       const res = await getCurrentUser()
       if (res.status && res.user) {
+        setSessionUser(res.user, res.token)
         const dest = res.user.role === 'admin' ? '/admin/dashboard' : '/student/dashboard'
         router.push(dest)
       }
     }
     checkExistingSession()
-  }, [router])
+  }, [router, setSessionUser])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -69,6 +72,10 @@ export default function LoginPage() {
       return
     }
 
+    if (res.user) {
+      setSessionUser(res.user, res.token)
+    }
+
     const redirectPath = res.user?.role === 'admin' ? '/admin/dashboard' : '/student/dashboard'
     setSuccessMsg(`Successfully authenticated as ${res.user?.role || 'student'}! Redirecting to student portal...`)
     setTimeout(() => {
@@ -76,15 +83,12 @@ export default function LoginPage() {
     }, 800)
   }
 
-  const handleQuickDemo = (demoRole: 'student' | 'faculty' | 'admin') => {
+  const handleQuickDemo = (demoRole: 'student' | 'admin') => {
     setRole(demoRole)
     setErrorMsg('')
     if (demoRole === 'student') {
       setEmail('student@gmail.com')
       setPassword('campus123!@#')
-    } else if (demoRole === 'faculty') {
-      setEmail('dr.wilson@campus.edu')
-      setPassword('demoFaculty2026!')
     } else {
       setEmail('admin@gmail.com')
       setPassword('campus123!@#')
@@ -185,13 +189,7 @@ export default function LoginPage() {
               >
                 <User className="w-3 h-3" /> Student Demo
               </button>
-              <button 
-                type="button"
-                onClick={() => handleQuickDemo('faculty')}
-                className="px-2.5 py-1 rounded-lg bg-[#06b6d4]/10 hover:bg-[#06b6d4]/20 border border-[#06b6d4]/30 text-[#06b6d4] text-[11px] transition-all flex items-center gap-1.5"
-              >
-                <GraduationCap className="w-3 h-3" /> Faculty Demo
-              </button>
+
               <button 
                 type="button"
                 onClick={() => handleQuickDemo('admin')}
@@ -219,7 +217,7 @@ export default function LoginPage() {
             </div>
 
             {/* Role Switcher Tabs */}
-            <div className="p-1 rounded-xl bg-[#0f0117] border border-[#2d2240] grid grid-cols-3 gap-1">
+            <div className="p-1 rounded-xl bg-[#0f0117] border border-[#2d2240] grid grid-cols-2 gap-1">
               <button
                 type="button"
                 onClick={() => setRole('student')}
@@ -230,17 +228,6 @@ export default function LoginPage() {
                 }`}
               >
                 <User className="w-3.5 h-3.5" /> Student
-              </button>
-              <button
-                type="button"
-                onClick={() => setRole('faculty')}
-                className={`py-2 text-xs font-semibold rounded-lg transition-all flex items-center justify-center gap-1.5 ${
-                  role === 'faculty'
-                    ? 'bg-gradient-to-r from-[#06b6d4] to-[#a855f7] text-white shadow-md'
-                    : 'text-muted-foreground hover:text-white hover:bg-white/5'
-                }`}
-              >
-                <GraduationCap className="w-3.5 h-3.5" /> Faculty
               </button>
               <button
                 type="button"

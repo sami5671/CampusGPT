@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import Link from 'next/link'
 import { ChevronLeft, Plus, MessageSquare, Trash2, Loader2, Pencil, Check, X, User as UserIcon, Home } from 'lucide-react'
 import { useAuth } from '@/lib/auth-context'
@@ -35,8 +35,9 @@ export function Sidebar({
   const [isLoading, setIsLoading] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editTitle, setEditTitle] = useState('')
+  const hasAutoSelectedRef = useRef(false)
 
-  const fetchConversations = async () => {
+  const fetchConversations = useCallback(async () => {
     if (!isAuthenticated || !user) {
       setConversations([])
       return
@@ -56,17 +57,21 @@ export function Sidebar({
       const data = await res.json()
       if (data?.status && Array.isArray(data?.data)) {
         setConversations(data.data)
+        if (data.data.length > 0 && !activeConversationId && !hasAutoSelectedRef.current && onSelectConversation) {
+          hasAutoSelectedRef.current = true
+          onSelectConversation(data.data[0].id)
+        }
       }
     } catch (e) {
       console.warn('Failed to fetch chat history:', e)
     } finally {
       setIsLoading(false)
     }
-  }
+  }, [isAuthenticated, user?.id, activeConversationId, onSelectConversation])
 
   useEffect(() => {
     fetchConversations()
-  }, [isAuthenticated, user, refreshTrigger])
+  }, [fetchConversations, refreshTrigger])
 
   const handleStartRename = (e: React.MouseEvent, chat: ConversationSummary) => {
     e.stopPropagation()

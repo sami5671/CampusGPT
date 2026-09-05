@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { Sidebar } from '@/components/dashboard/sidebar'
 import { Topbar } from '@/components/dashboard/topbar'
@@ -9,8 +9,11 @@ import { Loader2 } from 'lucide-react'
 import { ChatSessionProvider, useChatSession } from '@/lib/chat-session-context'
 import { getAuthToken } from '@/lib/get-token'
 
+import { useAuth } from '@/lib/auth-context'
+
 function StudentDashboardContent({ children }: { children: React.ReactNode }) {
   const router = useRouter()
+  const { setSessionUser } = useAuth()
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [loading, setLoading] = useState(true)
   const [user, setUser] = useState<any>(null)
@@ -29,6 +32,7 @@ function StudentDashboardContent({ children }: { children: React.ReactNode }) {
         const res = await getCurrentUser()
         if (res.status && res.user) {
           setUser(res.user)
+          setSessionUser(res.user, res.token)
           setLoading(false)
         } else {
           router.push('/login')
@@ -39,9 +43,9 @@ function StudentDashboardContent({ children }: { children: React.ReactNode }) {
     }
 
     verifyStudentSession()
-  }, [router])
+  }, [router, setSessionUser])
 
-  const handleSelectConversation = async (id: string) => {
+  const handleSelectConversation = useCallback(async (id: string) => {
     setActiveConversationId(id)
     try {
       const baseUrl = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000').replace(/\/+$/, '')
@@ -67,7 +71,7 @@ function StudentDashboardContent({ children }: { children: React.ReactNode }) {
     } catch (e) {
       console.error('Error fetching conversation detail:', e)
     }
-  }
+  }, [setActiveConversationId, setSelectedMessages])
 
   if (loading) {
     return (

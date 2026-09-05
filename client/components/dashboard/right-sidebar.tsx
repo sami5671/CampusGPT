@@ -1,6 +1,5 @@
 'use client'
 
-import { Sparkles } from 'lucide-react'
 import { useAuth } from '@/lib/auth-context'
 
 interface RightSidebarProps {
@@ -9,13 +8,6 @@ interface RightSidebarProps {
 
 export function RightSidebar({ onSelectSuggestion }: RightSidebarProps) {
   const { user } = useAuth()
-
-  const suggestions = [
-    'What are the faculty members and professors?',
-    'What is the class schedule?',
-    'Where are the campus offices located?',
-    'What are the latest campus announcements?',
-  ]
 
   const contextCards = [
     {
@@ -42,25 +34,6 @@ export function RightSidebar({ onSelectSuggestion }: RightSidebarProps) {
 
   return (
     <aside className="hidden lg:flex flex-col w-64 bg-card border-l border-border/40 p-4 gap-6 overflow-y-auto">
-      {/* Suggestions */}
-      <div>
-        <div className="flex items-center gap-2 mb-4">
-          <Sparkles className="w-4 h-4 text-accent" />
-          <h3 className="text-sm font-semibold text-foreground">Suggestions</h3>
-        </div>
-        <div className="space-y-2">
-          {suggestions.map((suggestion, i) => (
-            <button
-              key={i}
-              onClick={() => onSelectSuggestion && onSelectSuggestion(suggestion)}
-              className="w-full text-left text-sm p-3 rounded-lg bg-muted/30 hover:bg-muted/60 text-muted-foreground hover:text-foreground transition line-clamp-2"
-            >
-              {suggestion}
-            </button>
-          ))}
-        </div>
-      </div>
-
       {/* Context Cards */}
       <div>
         <h3 className="text-sm font-semibold text-foreground mb-3">Your Status</h3>

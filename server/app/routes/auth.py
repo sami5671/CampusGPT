@@ -418,3 +418,152 @@ async def get_me(current_user: dict = Depends(get_current_user)):
         "message": "User profile fetched successfully",
         "statusCode": 200
     }
+
+class UpdateRolePayload(BaseModel):
+    role: str
+
+@router.get("/users")
+@router.get("/users/")
+async def get_all_users(current_user: dict = Depends(get_current_user)):
+    """
+    Fetch list of all real registered users from MongoDB (admin only).
+    """
+    db = get_database()
+    if db is None:
+        return JSONResponse(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            content={"status": False, "data": None, "message": "Database connection unavailable", "statusCode": 503}
+        )
+
+    if current_user.get("role") != "admin":
+        return JSONResponse(
+            status_code=status.HTTP_403_FORBIDDEN,
+            content={"status": False, "data": None, "message": "Admin authorization required!", "statusCode": 403}
+        )
+
+    users_cursor = db["users"].find({}).sort("createdAt", -1)
+    user_docs = await users_cursor.to_list(length=1000)
+    formatted_users = [format_user_doc(u) for u in user_docs]
+
+    return JSONResponse(
+        status_code=status.HTTP_200_OK,
+        content={
+            "status": True,
+            "data": formatted_users,
+            "message": "User list fetched successfully",
+            "statusCode": 200
+        }
+    )
+
+@router.patch("/users/{user_id}/role")
+@router.put("/users/{user_id}/role")
+async def update_user_role(
+    user_id: str,
+    payload: UpdateRolePayload,
+    current_user: dict = Depends(get_current_user)
+):
+    """
+    Update a user's role (e.g. admin or student) in MongoDB (admin only).
+    """
+    db = get_database()
+    if db is None:
+        return JSONResponse(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            content={"status": False, "data": None, "message": "Database connection unavailable", "statusCode": 503}
+        )
+
+    if current_user.get("role") != "admin":
+        return JSONResponse(
+            status_code=status.HTTP_403_FORBIDDEN,
+            content={"status": False, "data": None, "message": "Admin authorization required!", "statusCode": 403}
+        )
+
+    new_role = payload.role.lower().strip()
+    if new_role not in ["admin", "student", "staff", "faculty"]:
+        return JSONResponse(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            content={"status": False, "data": None, "message": "Invalid role specified!", "statusCode": 400}
+        )
+
+    try:
+        obj_id = ObjectId(user_id)
+    except Exception:
+        return JSONResponse(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            content={"status": False, "data": None, "message": "Invalid user ID format", "statusCode": 400}
+        )
+
+    now_str = datetime.utcnow().isoformat()
+    result = await db["users"].update_one(
+        {"_id": obj_id},
+        {"$set": {"role": new_role, "updatedAt": now_str}}
+    )
+
+    if result.matched_count == 0:
+        return JSONResponse(
+            status_code=status.HTTP_404_NOT_FOUND,
+            content={"status": False, "data": None, "message": "User not found", "statusCode": 404}
+        )
+
+    updated_user = await db["users"].find_one({"_id": obj_id})
+    return JSONResponse(
+        status_code=status.HTTP_200_OK,
+        content={
+            "status": True,
+            "data": format_user_doc(updated_user),
+            "message": f"User role updated to '{new_role}' successfully!",
+            "statusCode": 200
+        }
+    )
+
+@router.delete("/users/{user_id}")
+async def delete_user(
+    user_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    """
+    Delete a real user from MongoDB (admin only).
+    """
+    db = get_database()
+    if db is None:
+        return JSONResponse(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            content={"status": False, "data": None, "message": "Database connection unavailable", "statusCode": 503}
+        )
+
+    if current_user.get("role") != "admin":
+        return JSONResponse(
+            status_code=status.HTTP_403_FORBIDDEN,
+            content={"status": False, "data": None, "message": "Admin authorization required!", "statusCode": 403}
+        )
+
+    if str(current_user["_id"]) == user_id:
+        return JSONResponse(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            content={"status": False, "data": None, "message": "You cannot delete your own admin account!", "statusCode": 400}
+        )
+
+    try:
+        obj_id = ObjectId(user_id)
+    except Exception:
+        return JSONResponse(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            content={"status": False, "data": None, "message": "Invalid user ID format", "statusCode": 400}
+        )
+
+    result = await db["users"].delete_one({"_id": obj_id})
+    if result.deleted_count == 0:
+        return JSONResponse(
+            status_code=status.HTTP_404_NOT_FOUND,
+            content={"status": False, "data": None, "message": "User not found", "statusCode": 404}
+        )
+
+    return JSONResponse(
+        status_code=status.HTTP_200_OK,
+        content={
+            "status": True,
+            "data": None,
+            "message": "User account deleted successfully!",
+            "statusCode": 200
+        }
+    )

@@ -2,7 +2,6 @@
 
 import { useState, useRef, useEffect } from 'react'
 import { Send, Loader2 } from 'lucide-react'
-import { QuickActions } from './quick-actions'
 import { FormattedMessageContent } from './formatted-message-content'
 
 interface Message {
@@ -123,9 +122,6 @@ export function ChatInterface({ messages, isLoading = false, onSendMessage }: Ch
 
         <div ref={messagesEndRef} />
       </div>
-
-      {/* Quick Actions - Show only on first message */}
-      {messages.length === 1 && <QuickActions onSelectAction={onSendMessage} />}
 
       {/* Input Area */}
       <div className="flex gap-3">
